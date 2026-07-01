@@ -12,6 +12,7 @@
 
   # Bootloader.
   boot.loader.systemd-boot.enable = true;
+  boot.loader.systemd-boot.configurationLimit = 3;
   boot.loader.efi.canTouchEfiVariables = true;
   boot.kernelModules = [ "nct6683" ];
 
@@ -26,6 +27,14 @@
   networking.networkmanager.enable = true;
   services.flatpak.enable = true;
 
+  services.pipewire.wireplumber.extraConfig."51-bluez-a2dp-only" = {
+  "monitor.bluez.properties" = {
+    "bluez5.roles" = [ "a2dp_sink" "a2dp_source" ];
+  };
+};
+  # Bluetooth
+hardware.bluetooth.enable = true;
+hardware.bluetooth.powerOnBoot = true;
   # Set your time zone.
   time.timeZone = "America/New_York";
 
@@ -62,6 +71,11 @@
   nixpkgs.config.allowUnfree = true;
 
   programs.niri.enable = true;
+  programs.dank-material-shell = {
+  enable = true;
+  enableSystemMonitoring = true;
+};
+  nix.settings.experimental-features = [ "nix-command" "flakes" ];
 
   fileSystems."/mnt/external" = {
   device = "/dev/disk/by-uuid/869cb7b4-fc80-454f-8913-37dd51a80c0c";
@@ -104,7 +118,7 @@ programs.thunar = {
   # $ nix search wget
   environment.systemPackages = with pkgs; [
   neovim
-  rofi
+  (rofi.override { plugins = [ pkgs.rofi-calc ]; })
   fastfetch
 
   ffmpegthumbnailer       # video thumbnails
@@ -117,6 +131,8 @@ programs.thunar = {
   git
   qview
   unzip
+
+  libreoffice
 
   yazi
 
