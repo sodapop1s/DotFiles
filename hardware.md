@@ -16,7 +16,7 @@ Last updated: 2026-07-07
 - **Memory:** 30.49GB
 - **Monitors:** 1920x1080, 1920x1080 @ 165Hz
 - **Network:** 1Gbps
-- **Kernel:** TBD — update via `uname -r`
+- **Kernel:** TBD
 - **Notes:** Migrated from Fedora. Previous Fedora kernel was 6.14.14-200.fc43.x86_64;
   no longer accurate post-migration.
 
@@ -58,16 +58,3 @@ Last updated: 2026-07-07
 
 ---
 
-## How to update this file
-
-```bash
-# CPU/kernel
-uname -r
-lscpu | grep "Model name"
-
-# Memory
-free -h
-
-# GPU (AMD)
-lspci | grep -i vga
-```
