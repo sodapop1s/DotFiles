@@ -4,7 +4,8 @@
 #
 #
 #
-#
+
+#-----------------------------------
 { config, pkgs, inputs, ... }:
 
 {
@@ -22,6 +23,20 @@
   # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
   
 
+#--------------------------------
+#VIBE CODED AND NOT REWRITTEN YET
+#--------------------------------
+programs.nix-ld = {
+  enable = true;
+  libraries = with pkgs; [
+    icu        # CoreCLR needs libicu — common cause of 0x80004005
+    openssl
+    zlib
+    stdenv.cc.cc.lib   # libstdc++/libgcc
+  ];
+};
+
+#
   #--------------
   # Core Settings
   #--------------
@@ -157,6 +172,7 @@
   wl-clipboard
   quickshell
   xwayland-satellite
+  claude-code
   (btop.override { rocmSupport = true; })
   
   # Random vibe coded dependecies that i dont know what theyre for
@@ -171,6 +187,7 @@
   fzf                # fuzzy finder integration
   zoxide             # smart cd integration
   imagemagick        # image conversion for previews
+  gh                 # GitHub CLI, needed by Octo
 
   #Game Launchers
   prismlauncher
