@@ -40,7 +40,7 @@ programs.nix-ld = {
   #--------------
   # Core Settings
   #--------------
-
+  services.flatpak.enable = true;
   # networking
   networking.networkmanager.enable = true;
   networking.firewall.allowedTCPPorts = [ 11434 2049 ]; # only works when home, 2049 is omalla
@@ -126,6 +126,7 @@ programs.nix-ld = {
   remotePlay.openFirewall = true;       # Steam Remote Play
   dedicatedServer.openFirewall = true;  # Source Dedicated Server
   protontricks.enable = true;
+  extraCompatPackages = [ pkgs.proton-ge-bin ];
   };
   programs.gamescope = {
     enable = true;
@@ -192,6 +193,7 @@ programs.nix-ld = {
   #Game Launchers
   prismlauncher
   wivrn  # Quest 3 support
+  olympus
   
   # Programs
   floorp-bin
