@@ -43,7 +43,8 @@ programs.nix-ld = {
   services.flatpak.enable = true;
   # networking
   networking.networkmanager.enable = true;
-  networking.firewall.allowedTCPPorts = [ 11434 2049 ]; # only works when home, 2049 is omalla
+  networking.firewall.allowedTCPPorts = [ 11434 2049 46000 ]; # only works when home, 2049 is omalla
+  networking.firewall.allowedUDPPorts = [ 46000 ]; # RTP from Steam Deck
   networking.firewall.extraInputRules = ''ip saddr 192.168.1.0/24 tcp dport 11434 accept''; # this only works when home / think about removing
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
@@ -216,6 +217,30 @@ services.pipewire = {
   alsa.enable = true;
   alsa.support32Bit = true;
   pulse.enable = true;
+  extraConfig.pipewire."99-deck-lan" = {
+    "context.modules" = [
+      {
+        name = "libpipewire-module-rtp-source";
+        args = {
+          "source.ip" = "0.0.0.0";
+          "source.port" = 46000;
+          "sess.latency.msec" = 200;
+          "audio.format" = "S16BE";
+          "audio.rate" = 48000;
+          "audio.channels" = 2;
+          "stream.props" = { "node.name" = "deck-rtp"; "media.class" = "Audio/Source"; };
+        };
+      }
+      {
+        name = "libpipewire-module-loopback";
+        args = {
+          "node.description" = "Steam Deck In";
+          "capture.props"."node.target" = "deck-rtp";
+          "playback.props"."node.name" = "deck-loopback-out";
+        };
+      }
+    ];
+  };
 };
 services.udisks2.enable = true;
 services.devmon.enable = true;
