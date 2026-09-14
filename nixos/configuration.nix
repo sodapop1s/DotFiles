@@ -19,7 +19,7 @@
   boot.loader.efi.canTouchEfiVariables = true;
   boot.kernelModules = [ "nct6683" ];
 
-  networking.hostName = "nixos"; # Every computer with NixOS has this username for simplicity
+  networking.hostName = "soda-desk"; # Every computer with NixOS has this username for simplicity
   # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
   
 
@@ -33,9 +33,13 @@ programs.nix-ld = {
     openssl
     zlib
     stdenv.cc.cc.lib   # libstdc++/libgcc
+  fontconfig.lib
+    freetype
+    libGL
+    icu
+
   ];
 };
-
 #
   #--------------
   # Core Settings
@@ -70,6 +74,8 @@ programs.nix-ld = {
   };
 
   programs.niri.enable = true;
+  services.tailscale.enable = true;
+  networking.firewall.trustedInterfaces = [ "tailscale0" ];
 
  # this enables my external hard drive
   fileSystems."/mnt/external" = {
@@ -153,7 +159,6 @@ programs.nix-ld = {
       obs-pipewire-audio-capture
     ];
   };
-
   #-------------------
   # System Packages
   #-------------------
@@ -176,6 +181,8 @@ programs.nix-ld = {
   xwayland-satellite
   claude-code
   (btop.override { rocmSupport = true; })
+  javaPackages.compiler.semeru-bin.jre-17
+  cloudflared
   
   # Random vibe coded dependecies that i dont know what theyre for
   webp-pixbuf-loader # webp thumbnails
@@ -192,14 +199,27 @@ programs.nix-ld = {
   gh                 # GitHub CLI, needed by Octo
 
   #Game Launchers
-  prismlauncher
+ (prismlauncher.override {
+  additionalLibs = [
+    libxkbcommon
+  ] ++ (with xorg; [
+    libX11
+    libXtst
+    libxcb
+    libXt
+    libXinerama
+  ]);
+})
+(callPackage ./pkgs/ninjabrain-bot.nix { })
   wivrn  # Quest 3 support
   olympus
-  
+  gale
+
   # Programs
   floorp-bin
   kdePackages.kdenlive
   vesktop
+  obsidian
 
 
   ];

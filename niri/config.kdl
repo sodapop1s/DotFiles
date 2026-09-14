@@ -23,8 +23,8 @@ output "DP-1" {
     mode "1920x1080@165.004"
     position x=0 y=0
     }
-output "DP-2"{
-    mode "1920x1080@165.004"
+output "HDMI-A-1"{
+    mode "1920x1080@165.008"
     position x=1920 y=0
     }
 //Layout of Niri
@@ -102,7 +102,11 @@ layout {
 // DMS owns the bar, notifications, launcher, lock, etc. as one shell.
 spawn-at-startup "dms" "run"
 spawn-at-startup "swww-daemon"
+spawn-at-startup "xwayland-satellite" ":0"
 spawn-sh-at-startup "sleep 1 && swww img /home/soda/.config/swww/Wallpaper.png"
+environment {
+    DISPLAY ":0"
+}
 // To run a shell command (with variables, pipes, etc.), use spawn-sh-at-startup:
 // spawn-sh-at-startup "qs -c ~/source/qs/MyAwesomeShell"
 
@@ -143,6 +147,11 @@ animations {
 
 // Work around WezTerm's initial configure bug
 // by setting an empty default-column-width.
+window-rule {
+    match title="^Ninjabrain Bot"
+    open-floating true
+    default-floating-position x=20 y=20 relative-to="top-right"
+}
 window-rule {
     // This regular expression is intentionally made as specific as possible,
     // since this is the default config, and we want no false positives.
