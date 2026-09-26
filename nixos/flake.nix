@@ -1,34 +1,24 @@
- {
+{
   description = "Soda's NixOS configs";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
-    dms = {
-      url = "github:AvengeMedia/DankMaterialShell/stable";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-    dgop = {
-      url = "github:AvengeMedia/dgop";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
-  outputs = { self, nixpkgs, dms, dgop, ... }@inputs: {
+  outputs = { self, nixpkgs, ... }@inputs: {
     nixosConfigurations = {
-      framework16 = nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
+      soda-fw = nixpkgs.lib.nixosSystem {
+        system      = "x86_64-linux";
         specialArgs = { inherit inputs; };
-        modules = [
-          ./configuration.nix
-          dms.nixosModules.dank-material-shell
+        modules     = [
+          ./hosts/soda-fw/configuration.nix
         ];
       };
-      desktop = nixpkgs.lib.nixosSystem {
-        system = "x86_64-linux";
+      soda-desk = nixpkgs.lib.nixosSystem {
+        system      = "x86_64-linux";
         specialArgs = { inherit inputs; };
-        modules = [
-          ./configuration.nix
-          dms.nixosModules.dank-material-shell
+        modules     = [
+          ./hosts/soda-desk/configuration.nix
         ];
       };
     };

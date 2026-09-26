@@ -98,12 +98,11 @@ layout {
 // which may be more convenient to use.
 // See the binds section below for more spawn examples.
 
-// DankMaterialShell (DMS) — replaces the old Quickshell bar.
-// DMS owns the bar, notifications, launcher, lock, etc. as one shell.
-spawn-at-startup "dms" "run"
+// Quickshell bar (notification daemon is built into the shell)
+spawn-at-startup "qs" "-c" "/home/soda/.config/quickshell/bar"
 spawn-at-startup "swww-daemon"
 spawn-at-startup "xwayland-satellite" ":0"
-spawn-sh-at-startup "sleep 1 && swww img /home/soda/.config/swww/Wallpaper.png"
+spawn-sh-at-startup "sleep 1 && swww img '/home/soda/Pictures/Wallpaper/Lake 4.png'"
 environment {
     DISPLAY ":0"
 }
@@ -201,44 +200,42 @@ binds {
     // Suggested binds or running programs: terminal, app launcher, screen locker.
     Mod+Q hotkey-overlay-title="Open a Terminal: Kitty" { spawn "kitty"; }
 
-    // ---------------------------------------------------------------------
-    // DankMaterialShell (DMS) modals — driven over `dms ipc call`.
-    // Keys chosen to avoid collisions with the niri binds further down.
-    // ---------------------------------------------------------------------
-    Mod+Space   hotkey-overlay-title="Launcher (DMS Spotlight)" { spawn "dms" "ipc" "call" "spotlight" "toggle"; }
-    Mod+R       hotkey-overlay-title="Launcher (DMS Spotlight)" { spawn "dms" "ipc" "call" "spotlight" "toggle"; }
-    Mod+N       hotkey-overlay-title="Notification Center"      { spawn "dms" "ipc" "call" "notifications" "toggle"; }
-    Mod+B       hotkey-overlay-title="Control Center"           { spawn "dms" "ipc" "call" "control-center" "toggle"; }
-    Mod+Shift+B hotkey-overlay-title="Clipboard History"        { spawn "dms" "ipc" "call" "clipboard" "toggle"; }
-    Mod+P       hotkey-overlay-title="Power Menu"               { spawn "dms" "ipc" "call" "powermenu" "toggle"; }
-    Mod+M       hotkey-overlay-title="Process List / Monitor"   { spawn "dms" "ipc" "call" "processlist" "toggle"; }
-    Mod+D       hotkey-overlay-title="Dashboard"                { spawn "dms" "ipc" "call" "dash" "toggle" ""; }
-    Mod+Shift+Comma hotkey-overlay-title="DMS Settings"         { spawn "dms" "ipc" "call" "settings" "toggle"; }
-    Mod+Shift+N hotkey-overlay-title="Notepad"                  { spawn "dms" "ipc" "call" "notepad" "open"; }
-    Super+Alt+L hotkey-overlay-title="Lock the Screen (DMS)"    { spawn "dms" "ipc" "call" "lock" "lock"; }
+    // Hub (Quickshell bar IPC)
+    Mod+Space   hotkey-overlay-title="Hub / Launcher"      { spawn "qs" "ipc" "call" "hub" "toggle"; }
+    Mod+R       hotkey-overlay-title="Hub / Launcher"      { spawn "qs" "ipc" "call" "hub" "toggle"; }
+    Mod+B       hotkey-overlay-title="Hub / Control Center" { spawn "qs" "ipc" "call" "hub" "toggle"; }
+
+    // Notifications
+    Mod+N       hotkey-overlay-title="Dismiss Notification"      { spawn "qs" "ipc" "call" "notif" "dismiss"; }
+    Mod+Shift+N hotkey-overlay-title="Dismiss All Notifications" { spawn "qs" "ipc" "call" "notif" "dismissAll"; }
+
+    // Utilities
+    Mod+M       hotkey-overlay-title="System Monitor"       { spawn "kitty" "-e" "btop"; }
+    Mod+P       hotkey-overlay-title="Power Menu"           { spawn "wlogout"; }
+
+    // Lock
+    Super+Alt+L hotkey-overlay-title="Lock the Screen"      { spawn "swaylock"; }
 
     // Use spawn-sh to run a shell command. Do this if you need pipes, multiple commands, etc.
     // Note: the entire command goes as a single argument. It's passed verbatim to `sh -c`.
     // For example, this is a standard bind to toggle the screen reader (orca).
     Super+Alt+S allow-when-locked=true hotkey-overlay-title=null { spawn-sh "pkill orca || exec orca"; }
 
-    // Volume keys — routed through DMS so you get its on-screen volume OSD.
-    // allow-when-locked=true keeps them working on the lock screen.
-    XF86AudioRaiseVolume allow-when-locked=true { spawn "dms" "ipc" "call" "audio" "increment" "5"; }
-    XF86AudioLowerVolume allow-when-locked=true { spawn "dms" "ipc" "call" "audio" "decrement" "5"; }
-    XF86AudioMute        allow-when-locked=true { spawn "dms" "ipc" "call" "audio" "mute"; }
-    // Mic mute has no DMS IPC equivalent — kept on wpctl.
+    // Volume keys
+    XF86AudioRaiseVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+"; }
+    XF86AudioLowerVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"; }
+    XF86AudioMute        allow-when-locked=true { spawn-sh "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"; }
     XF86AudioMicMute     allow-when-locked=true { spawn-sh "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"; }
 
-    // Media keys — routed through DMS (MPRIS). Stop has no DMS equiv, kept on playerctl.
-    XF86AudioPlay        allow-when-locked=true { spawn "dms" "ipc" "call" "mpris" "playPause"; }
-    XF86AudioStop        allow-when-locked=true { spawn-sh "playerctl stop"; }
-    XF86AudioPrev        allow-when-locked=true { spawn "dms" "ipc" "call" "mpris" "previous"; }
-    XF86AudioNext        allow-when-locked=true { spawn "dms" "ipc" "call" "mpris" "next"; }
+    // Media keys
+    XF86AudioPlay  allow-when-locked=true { spawn-sh "playerctl play-pause"; }
+    XF86AudioStop  allow-when-locked=true { spawn-sh "playerctl stop"; }
+    XF86AudioPrev  allow-when-locked=true { spawn-sh "playerctl previous"; }
+    XF86AudioNext  allow-when-locked=true { spawn-sh "playerctl next"; }
 
-    // Brightness — routed through DMS for its OSD. Trailing "" = default device.
-    XF86MonBrightnessUp   allow-when-locked=true { spawn "dms" "ipc" "call" "brightness" "increment" "5" ""; }
-    XF86MonBrightnessDown allow-when-locked=true { spawn "dms" "ipc" "call" "brightness" "decrement" "5" ""; }
+    // Brightness
+    XF86MonBrightnessUp   allow-when-locked=true { spawn "brightnessctl" "set" "5%+"; }
+    XF86MonBrightnessDown allow-when-locked=true { spawn "brightnessctl" "set" "5%-"; }
 
     // Open/close the Overview: a zoomed-out view of workspaces and windows.
     // You can also move the mouse into the top-left hot corner,
@@ -444,10 +441,6 @@ binds {
     // Mod+Space       { switch-layout "next"; }
     // Mod+Shift+Space { switch-layout "prev"; }
 
-    // Native niri screenshots (kept). DMS has its own with a markup editor —
-    // to use it instead, install swappy (or satty) and swap these for:
-    //   Print      { spawn "dms" "ipc" "call" "niri" "screenshot"; }
-    //   Mod+Print  { spawn "dms" "ipc" "call" "niri" "screenshotScreen"; }
     Print { screenshot; }
     Ctrl+Print { screenshot-screen; }
     Alt+Print { screenshot-window; }
