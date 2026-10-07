@@ -98,7 +98,8 @@ PanelWindow {
                 try { notif.dismiss() } catch(e) {}
                 return
             }
-            var list = notifWin.notifs.concat([notif])
+            // a sender can close its notification itself; that leaves a dead entry here, so drop those first
+            var list = notifWin.notifs.filter(n => n).concat([notif])
             // drop the oldest if the stack gets too tall
             while (list.length > notifWin.maxVisible) {
                 var old = list.shift()
@@ -126,13 +127,14 @@ PanelWindow {
         spacing: 8
 
         Repeater {
-            // newest on top
-            model: notifWin.notifs.slice().reverse()
+            // newest on top. The model is just the ids: handing Qt a list that holds notification objects crashed Quickshell
+            // (SIGSEGV) when a sender closed its own notification and another one arrived.
+            model: notifWin.notifs.filter(n => n).reverse().map(n => n.id)
 
             delegate: Rectangle {
                 id: card
                 required property var modelData
-                readonly property var  n: modelData
+                readonly property var  n: notifWin.notifs.find(x => x && x.id === modelData) ?? null
                 readonly property bool critical: n?.urgency === NotificationUrgency.Critical
                 readonly property bool low:      n?.urgency === NotificationUrgency.Low
                 readonly property color accent:  critical ? notifWin.cRed : (low ? notifWin.cDim : notifWin.cMauve)
