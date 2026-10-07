@@ -6,39 +6,26 @@ import Quickshell.Io
 Item {
     required property var bar
 
-    RowLayout {
+    AppHeader {
         id: nhNav
-        anchors { top: parent.top; left: parent.left; right: parent.right; leftMargin: 12; rightMargin: 12 }
-        height: 40; spacing: 8
-        Text {
-            text: "󰁍"
-            color: Theme.dim; font { family: "JetBrainsMono Nerd Font"; pixelSize: 16 }
-            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: bar.hubView = "main" }
+        bar: parent.bar; icon: "󰂚"; title: "Notifications"; accent: Theme.mauve
+        subtitle: (bar.store?.history?.length ?? 0) + " in history"
+        anchors { top: parent.top; left: parent.left; right: parent.right }
+        onBack: bar.hubView = "main"
+        HeaderButton {
+            text: bar.dndOn ? "󰂛  DND on" : "󰂚  DND off"; accent: Theme.peach; active: bar.dndOn
+            onClicked: bar.dndOn = !bar.dndOn
         }
-        Text { text: "Notifications"; color: Theme.sky; font { family: "JetBrainsMono Nerd Font"; pixelSize: 14; bold: true } }
-        Text {
-            text: (bar.store?.history?.length ?? 0) + ""
-            color: Theme.dim; font { family: "JetBrainsMono Nerd Font"; pixelSize: 11 }
-        }
-        Item { Layout.fillWidth: true }
-        Text {
-            text: bar.dndOn ? "󰂛 DND on" : "󰂚 DND off"
-            color: bar.dndOn ? Theme.peach : Theme.dim; font { family: "JetBrainsMono Nerd Font"; pixelSize: 11 }
-            MouseArea { anchors.fill: parent; anchors.margins: -4; cursorShape: Qt.PointingHandCursor; onClicked: bar.dndOn = !bar.dndOn }
-        }
-        Text {
+        HeaderButton {
             visible: (bar.store?.history?.length ?? 0) > 0
-            text: "clear all"
-            color: Theme.dim; font { family: "JetBrainsMono Nerd Font"; pixelSize: 11 }
-            MouseArea { anchors.fill: parent; anchors.margins: -4; cursorShape: Qt.PointingHandCursor; onClicked: bar.store.clearHistory() }
+            text: "clear all"; accent: Theme.red
+            onClicked: bar.store.clearHistory()
         }
     }
 
-    Rectangle { id: nhSep; anchors { top: nhNav.bottom; left: parent.left; right: parent.right; leftMargin: 12; rightMargin: 12 } height: 1; color: Theme.sep }
-
     ListView {
         id: nhList
-        anchors { top: nhSep.bottom; topMargin: 4; left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: 12; rightMargin: 12; bottomMargin: 10 }
+        anchors { top: nhNav.bottom; topMargin: 8; left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: 14; rightMargin: 14; bottomMargin: 12 }
         clip: true
         spacing: 4
         boundsBehavior: Flickable.StopAtBounds
@@ -52,8 +39,9 @@ Item {
             width: nhList.width
             implicitHeight: nhCol.implicitHeight + 14
             height: implicitHeight
-            radius: 8
-            color: nhHover.containsMouse ? Qt.alpha(Theme.mauve, 0.10) : Qt.alpha(Theme.mauve, 0.05)
+            radius: 12
+            color: nhHover.containsMouse ? Qt.alpha(Theme.mauve, 0.10) : Theme.card
+            border { color: nh.critical ? Qt.alpha(Theme.red, 0.4) : Theme.cardBorder; width: 1 }
 
             Rectangle {
                 width: 3; radius: 1.5
@@ -116,11 +104,10 @@ Item {
             MouseArea { id: nhHover; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
         }
 
-        Text {
+        EmptyState {
             visible: nhList.count === 0
             anchors.centerIn: parent
-            text: "No notifications"; color: Theme.dim
-            font { family: "JetBrainsMono Nerd Font"; pixelSize: 12 }
+            icon: "󰂜"; accent: Theme.mauve; title: "All caught up"; hint: "New notifications will collect here."
         }
     }
 }

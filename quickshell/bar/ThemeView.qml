@@ -13,12 +13,12 @@ Item {
     AppHeader {
         id: head
         bar: root.bar; icon: "󰏘"; title: "Theme"; accent: root.accent
+        subtitle: Theme.all[Theme.name].label || Theme.name
         anchors { top: parent.top; left: parent.left; right: parent.right }
         onBack: root.bar.hubView = "main"
-        Text { text: "next"; color: root.accent; font { family: root.font; pixelSize: 11 }
-               MouseArea { anchors.fill: parent; anchors.margins: -4; cursorShape: Qt.PointingHandCursor; onClicked: Theme.next() } }
+        HeaderButton { text: "󰒭  next"; accent: root.accent; onClicked: Theme.next() }
     }
-    Rectangle { id: sep; anchors { top: head.bottom; left: parent.left; right: parent.right; leftMargin: 14; rightMargin: 14 } height: 1; color: Theme.sep }
+    Item { id: sep; anchors.top: head.bottom; height: 0 }
 
     ListView {
         id: list

@@ -119,6 +119,7 @@ Item {
     AppHeader {
         id: head
         bar: root.bar; icon: "󰅌"; title: "Clipboard"; accent: root.accent
+        subtitle: root.items.length + " items  ·  " + root.items.filter(x => x.pinned).length + " pinned"
         anchors { top: parent.top; left: parent.left; right: parent.right }
         onBack: root.bar.hubView = "main"
         Text {
@@ -126,15 +127,9 @@ Item {
             text: root.status; color: root.statusErr ? Theme.red : Theme.green
             font { family: root.font; pixelSize: 11 }
         }
-        Text {
-            text: root.items.length + " items"; color: Theme.dim; font { family: root.font; pixelSize: 10 }
-        }
-        Text {
-            text: "clear"; color: Theme.dim; font { family: root.font; pixelSize: 11 }
-            MouseArea { anchors.fill: parent; anchors.margins: -4; cursorShape: Qt.PointingHandCursor; onClicked: root.clearUnpinned() }
-        }
+        HeaderButton { text: "󰆴  clear"; accent: Theme.red; onClicked: root.clearUnpinned() }
     }
-    Rectangle { id: sep; anchors { top: head.bottom; left: parent.left; right: parent.right; leftMargin: 14; rightMargin: 14 } height: 1; color: Theme.sep }
+    Item { id: sep; anchors.top: head.bottom; height: 0 }
 
     Rectangle {
         id: box
@@ -230,12 +225,12 @@ Item {
             }
         }
 
-        Text {
+        EmptyState {
             visible: list.count === 0
             anchors.centerIn: parent
-            horizontalAlignment: Text.AlignHCenter
-            text: root.items.length === 0 ? "Nothing copied yet.\nHistory starts when the bar starts and is kept in memory only." : "No matches"
-            color: Theme.dim; font { family: root.font; pixelSize: 11 }
+            icon: root.items.length === 0 ? "󰅌" : "󰍉"; accent: root.accent
+            title: root.items.length === 0 ? "Nothing copied yet" : "No matches"
+            hint: root.items.length === 0 ? "History starts when the bar starts and is kept in memory only. Pin things to keep them." : "Try a different search."
         }
     }
 }

@@ -22,14 +22,19 @@ Item {
         Rectangle {
             width: Math.max(parent.height, track.width * Math.max(0, Math.min(1, s.value)))
             height: parent.height; radius: parent.radius
-            color: s.dimmed ? Theme.dim : s.accent
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                GradientStop { position: 0.0; color: s.dimmed ? Theme.dim : Qt.darker(s.accent, 1.35) }
+                GradientStop { position: 1.0; color: s.dimmed ? Theme.dim : s.accent }
+            }
         }
     }
     Rectangle {
         visible: area.containsMouse || area.pressed
         x: Math.max(0, Math.min(track.width - width, track.width * s.value - width / 2))
         anchors.verticalCenter: track.verticalCenter
-        width: 14; height: 14; radius: 7; color: "white"
+        width: 14; height: 14; radius: 7; color: Theme.bright
+        border { color: s.dimmed ? Theme.dim : s.accent; width: 3 }
     }
     MouseArea {
         id: area

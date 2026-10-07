@@ -227,13 +227,13 @@ Item {
             text: root.syncing ? "syncing…" : root.syncedText(root.tick)
             color: Theme.dim; font { family: root.font; pixelSize: 10 }
         }
-        Text {
+        HeaderButton {
             visible: root.info.hasUrl && root.tab === "calendar"
-            text: "󰑐"; color: Theme.dim; font { family: root.font; pixelSize: 14 }
-            MouseArea { anchors.fill: parent; anchors.margins: -4; cursorShape: Qt.PointingHandCursor; onClicked: root.sync(true) }
+            text: "󰑐  sync"; accent: root.accent; active: root.syncing
+            onClicked: root.sync(true)
         }
     }
-    Rectangle { id: sep; anchors { top: head.bottom; left: parent.left; right: parent.right; leftMargin: 14; rightMargin: 14 } height: 1; color: Theme.sep }
+    Item { id: sep; anchors.top: head.bottom; height: 0 }
 
     // tab switch
     Row {

@@ -206,7 +206,8 @@ spacing: 0
                                         border { color: root.courseColor(ir.a.courseId); width: 1 }
                                     }
                                 }
-                                MouseArea { anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor; onClicked: root.sc.cycleProgress(ir.a) }
+                                TapHandler { onTapped: root.sc.cycleProgress(ir.a) }
+                                HoverHandler { cursorShape: Qt.PointingHandCursor }
                             }
                             Rectangle {    // start the study timer on this one
                                 Layout.preferredWidth: 22; Layout.preferredHeight: 22; radius: 11

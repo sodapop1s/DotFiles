@@ -3,79 +3,80 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
 
+// Wi-Fi network list: click a network to join it, click the connected one to disconnect.
 Item {
+    id: root
     required property var bar
+    readonly property string font: "JetBrainsMono Nerd Font"
+    readonly property color accent: Theme.sky
 
-    ColumnLayout {
+    AppHeader {
+        id: head
+        bar: root.bar; icon: "󰤨"; title: "Wi-Fi"; accent: root.accent
+        subtitle: root.bar.wifiNetworks.length + " networks in range"
         anchors { top: parent.top; left: parent.left; right: parent.right }
-        anchors { leftMargin: 12; rightMargin: 12 }
-        spacing: 0
+        onBack: root.bar.hubView = "main"
+        HeaderButton {
+            text: root.bar.wifiScanProc.running ? "󰑐  scanning…" : "󰑐  rescan"; accent: root.accent; active: root.bar.wifiScanProc.running
+            onClicked: { if (!root.bar.wifiScanProc.running) root.bar.wifiScanProc.running = true }
+        }
+    }
 
-        // nav row
-        RowLayout {
-            Layout.fillWidth: true; Layout.preferredHeight: 40; spacing: 8
-            Text {
-                text: "󰁍"
-                color: Theme.dim; font { family: "JetBrainsMono Nerd Font"; pixelSize: 16 }
-                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: bar.hubView = "main" }
+    ListView {
+        id: list
+        anchors { top: head.bottom; topMargin: 8; left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: 14; rightMargin: 14; bottomMargin: 12 }
+        clip: true; spacing: 6
+        boundsBehavior: Flickable.StopAtBounds
+        model: root.bar.wifiNetworks
+
+        delegate: Rectangle {
+            id: row
+            required property var modelData
+            readonly property bool active: modelData.active
+            readonly property bool secured: !!modelData.security && modelData.security !== "--"
+            width: list.width; height: 46; radius: 12
+            color: active ? Qt.alpha(root.accent, 0.12) : (hh.hovered ? Qt.alpha(root.accent, 0.08) : Theme.card)
+            border { color: active ? Qt.alpha(root.accent, 0.5) : (hh.hovered ? Qt.alpha(root.accent, 0.25) : Theme.cardBorder); width: 1 }
+            Behavior on color { ColorAnimation { duration: 100 } }
+            HoverHandler { id: hh; cursorShape: Qt.PointingHandCursor }
+            MouseArea {
+                anchors.fill: parent
+                onClicked: {
+                    if (row.active) root.bar.wifiConnectProc.disconnectWifi()
+                    else root.bar.wifiConnectProc.connectTo(row.modelData.ssid)
+                }
             }
-            Text { text: "WiFi"; color: Theme.sky; font { family: "JetBrainsMono Nerd Font"; pixelSize: 14; bold: true } }
-            Item { Layout.fillWidth: true }
-            Text {
-                text: bar.wifiScanProc.running ? "scanning…" : "rescan"
-                color: Theme.dim; font { family: "JetBrainsMono Nerd Font"; pixelSize: 11 }
-                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { if (!bar.wifiScanProc.running) bar.wifiScanProc.running = true } }
+            RowLayout {
+                anchors { fill: parent; leftMargin: 10; rightMargin: 12 }
+                spacing: 10
+                Rectangle {
+                    Layout.preferredWidth: 30; Layout.preferredHeight: 30; radius: 9
+                    color: row.active ? Qt.alpha(root.accent, 0.22) : Qt.alpha(Theme.mauve, 0.08)
+                    Text {
+                        anchors.centerIn: parent
+                        text: row.modelData.signal > 75 ? "󰤨" : row.modelData.signal > 50 ? "󰤥" : row.modelData.signal > 25 ? "󰤢" : "󰤟"
+                        color: row.active ? root.accent : Theme.subtext
+                        font { family: root.font; pixelSize: 16 }
+                    }
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true; spacing: 0
+                    Text { text: row.modelData.ssid; color: row.active ? Theme.bright : Theme.text; elide: Text.ElideRight; Layout.fillWidth: true
+                           textFormat: Text.PlainText; font { family: root.font; pixelSize: 12; bold: row.active } }
+                    Text { text: row.active ? "connected  ·  " + row.modelData.signal + "%" : (row.secured ? row.modelData.security : "open network") + "  ·  " + row.modelData.signal + "%"
+                           color: row.active ? Theme.green : Theme.dim; font { family: root.font; pixelSize: 9 } }
+                }
+                Text { text: row.secured ? "󰌾" : "󰌿"; color: row.secured ? Theme.dim : Theme.yellow; font { family: root.font; pixelSize: 13 } }
+                Rectangle { visible: row.active; Layout.preferredWidth: 8; Layout.preferredHeight: 8; radius: 4; color: Theme.green }
             }
         }
 
-        Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Theme.sep; Layout.bottomMargin: 2 }
-
-        Repeater {
-            model: bar.wifiNetworks
-            delegate: Rectangle {
-                required property var modelData
-                Layout.fillWidth: true; implicitHeight: 40; radius: 6
-                color: modelData.active ? Qt.alpha(Theme.sky, 0.12) : "transparent"
-
-                RowLayout {
-                    anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
-                    spacing: 8
-                    Text {
-                        text: modelData.signal > 75 ? "󰤨" : modelData.signal > 50 ? "󰤥" : modelData.signal > 25 ? "󰤢" : "󰤟"
-                        color: modelData.active ? Theme.sky : Theme.dim
-                        font { family: "JetBrainsMono Nerd Font"; pixelSize: 14 }
-                    }
-                    Text {
-                        text: modelData.ssid; color: modelData.active ? Theme.text : Theme.dim
-                        font { family: "JetBrainsMono Nerd Font"; pixelSize: 12 }
-                        elide: Text.ElideRight; Layout.fillWidth: true
-                    }
-                    Text {
-                        text: modelData.security || "Open"; color: Theme.dim
-                        font { family: "JetBrainsMono Nerd Font"; pixelSize: 10 }
-                    }
-                    Text {
-                        visible: modelData.active; text: "●"; color: Theme.green
-                        font { family: "JetBrainsMono Nerd Font"; pixelSize: 8 }
-                    }
-                }
-
-                MouseArea {
-                    anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        if (modelData.active) bar.wifiConnectProc.disconnectWifi()
-                        else bar.wifiConnectProc.connectTo(modelData.ssid)
-                    }
-                }
-            }
-        }
-
-        Text {
-            visible: bar.wifiNetworks.length === 0 && !bar.wifiScanProc.running
-            Layout.fillWidth: true; Layout.topMargin: 16
-            text: "No networks found"; color: Theme.dim
-            font { family: "JetBrainsMono Nerd Font"; pixelSize: 12 }
-            horizontalAlignment: Text.AlignHCenter
+        EmptyState {
+            visible: list.count === 0
+            anchors.centerIn: parent
+            icon: root.bar.wifiScanProc.running ? "󰑐" : "󰤭"; accent: root.accent
+            title: root.bar.wifiScanProc.running ? "Scanning…" : "No networks found"
+            hint: root.bar.wifiScanProc.running ? "" : "Press rescan to look again."
         }
     }
 }

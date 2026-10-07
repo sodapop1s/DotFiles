@@ -210,6 +210,12 @@ PanelWindow {
             }
         }
     }
+    // dev aid: render only the hub card (never the rest of the screen) to a PNG
+    IpcHandler {
+        target: "snap"
+        function hub(path: string): void { centerIsland.grabToImage(function(r) { r.saveToFile(path) }) }
+    }
+
     IpcHandler {
         target: "power"
         function warn(level: int): void { bar.warnBattery(level, level) }
@@ -472,12 +478,12 @@ PanelWindow {
     }
     property int currentHubHeight: {
         if (!hubOpen) return 32
-        if (hubView === "wifi") return Math.max(200, 101 + Math.min(wifiNetworks.length, 7) * 42)
-        if (hubView === "notifs") return 380
-        if (hubView === "power")  return 292
+        if (hubView === "wifi") return Math.max(280, 124 + Math.min(wifiNetworks.length, 7) * 52)
+        if (hubView === "notifs") return 440
+        if (hubView === "power")  return 310
         if (appletHeights[hubView] !== undefined) return appletHeights[hubView]
         if (hubView === "spotify") return 580
-        if (hubView === "bt")   return Math.max(200, 101 + Math.min(btDevices.length,   7) * 42)
+        if (hubView === "bt")   return Math.max(280, 124 + Math.min(btDevices.length, 7) * 52)
         // main view: 60 (island padding) + 48 (search bar + gap) + content
         return Math.max(180, hubContent.implicitHeight + 88 + 14)
     }

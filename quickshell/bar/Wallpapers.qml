@@ -42,6 +42,7 @@ Item {
     AppHeader {
         id: head
         bar: root.bar; icon: "󰸉"; title: "Wallpaper"; accent: root.accent
+        subtitle: root.images.length + " images"
         anchors { top: parent.top; left: parent.left; right: parent.right }
         onBack: root.bar.hubView = "main"
 
@@ -50,12 +51,9 @@ Item {
             text: root.status; color: root.statusErr ? Theme.red : Theme.green
             font { family: root.font; pixelSize: 11 }
         }
-        Text {
-            text: "󰒝 random"; color: Theme.dim; font { family: root.font; pixelSize: 11 }
-            MouseArea { anchors.fill: parent; anchors.margins: -4; cursorShape: Qt.PointingHandCursor; onClicked: root.random() }
-        }
+        HeaderButton { text: "󰒝  random"; accent: root.accent; onClicked: root.random() }
     }
-    Rectangle { id: sep; anchors { top: head.bottom; left: parent.left; right: parent.right; leftMargin: 14; rightMargin: 14 } height: 1; color: Theme.sep }
+    Item { id: sep; anchors.top: head.bottom; height: 0 }
 
     GridView {
         id: grid
@@ -78,8 +76,13 @@ Item {
                 color: Qt.alpha(Theme.mauve, 0.08)
                 border { color: cell.isCurrent ? root.accent : (hh.hovered ? Qt.alpha(Theme.pink, 0.5) : Theme.cardBorder); width: cell.isCurrent ? 2 : 1 }
 
+                Text { anchors.centerIn: parent; visible: thumb.status !== Image.Ready; text: "󰋩"; color: Qt.alpha(Theme.mauve, 0.35)
+                       font { family: root.font; pixelSize: 22 } }
                 Image {
+                    id: thumb
                     anchors { fill: parent; margins: 2 }
+                    opacity: status === Image.Ready ? 1 : 0
+                    Behavior on opacity { NumberAnimation { duration: 220 } }
                     asynchronous: true
                     fillMode: Image.PreserveAspectCrop
                     sourceSize: Qt.size(360, 240)

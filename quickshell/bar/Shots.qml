@@ -112,13 +112,9 @@ Item {
             text: root.status; color: root.statusErr ? Theme.red : Theme.green
             font { family: root.font; pixelSize: 11 }
         }
-        Text {
-            text: "open folder"; color: Theme.dim; font { family: root.font; pixelSize: 11 }
-            MouseArea { anchors.fill: parent; anchors.margins: -4; cursorShape: Qt.PointingHandCursor
-                        onClicked: root.openPath(Quickshell.env("HOME") + "/Pictures/Screenshots") }
-        }
+        HeaderButton { text: "󰉋  folder"; accent: root.accent; onClicked: root.openPath(Quickshell.env("HOME") + "/Pictures/Screenshots") }
     }
-    Rectangle { id: sep; anchors { top: head.bottom; left: parent.left; right: parent.right; leftMargin: 14; rightMargin: 14 } height: 1; color: Theme.sep }
+    Item { id: sep; anchors.top: head.bottom; height: 0 }
 
     // action buttons
     RowLayout {

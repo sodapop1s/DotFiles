@@ -39,12 +39,12 @@ Item {
     AppHeader {
         id: head
         bar: root.bar; icon: "󰖯"; title: "Windows"; accent: root.accent
+        subtitle: root.windows.length + " open"
         anchors { top: parent.top; left: parent.left; right: parent.right }
         onBack: root.bar.hubView = "main"
         Text { visible: root.status.length > 0; text: root.status; color: root.statusErr ? Theme.red : Theme.green; font { family: root.font; pixelSize: 11 } }
-        Text { text: root.windows.length + " open"; color: Theme.dim; font { family: root.font; pixelSize: 10 } }
-    }
-    Rectangle { id: sep; anchors { top: head.bottom; left: parent.left; right: parent.right; leftMargin: 14; rightMargin: 14 } height: 1; color: Theme.sep }
+            }
+    Item { id: sep; anchors.top: head.bottom; height: 0 }
 
     ListView {
         id: list

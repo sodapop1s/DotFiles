@@ -95,13 +95,12 @@ Item {
             text: root.status; color: root.statusErr ? Theme.red : Theme.green
             font { family: root.font; pixelSize: 11 }
         }
-        Text {
-            text: "open mixer"; color: Theme.dim; font { family: root.font; pixelSize: 11 }
-            MouseArea { anchors.fill: parent; anchors.margins: -4; cursorShape: Qt.PointingHandCursor
-                        onClicked: { root.bar.hubOpen = false; root.bar.openPavucontrol() } }
+        HeaderButton {
+            text: "󰒓  mixer"; accent: root.accent
+            onClicked: { root.bar.hubOpen = false; root.bar.openPavucontrol() }
         }
     }
-    Rectangle { id: sep; anchors { top: head.bottom; left: parent.left; right: parent.right; leftMargin: 14; rightMargin: 14 } height: 1; color: Theme.sep }
+    Item { id: sep; anchors.top: head.bottom; height: 0 }
 
     ListView {
         id: list
@@ -119,11 +118,10 @@ Item {
             height: kind === "header" ? 28 : (kind === "app" ? 50 : (kind === "volume" ? 38 : 40))
 
             // header
-            Text {
+            SectionLabel {
                 visible: row.kind === "header"
-                anchors { left: parent.left; leftMargin: 4; bottom: parent.bottom; bottomMargin: 4 }
-                text: (row.modelData.title || "").toUpperCase(); color: Theme.dim
-                font { family: root.font; pixelSize: 10; bold: true; letterSpacing: 1 }
+                anchors { left: parent.left; right: parent.right; leftMargin: 4; rightMargin: 4; bottom: parent.bottom; bottomMargin: 5 }
+                text: row.modelData.title || ""; accent: root.accent
             }
 
             // device row (click = make default)
@@ -137,11 +135,20 @@ Item {
                 RowLayout {
                     anchors { fill: parent; leftMargin: 12; rightMargin: 12 }
                     spacing: 10
-                    Text { text: row.modelData.glyph || ""; color: (row.node && row.node.default) ? root.accent : Theme.dim
-                           font { family: root.font; pixelSize: 16 } }
+                    Rectangle {
+                        Layout.preferredWidth: 28; Layout.preferredHeight: 28; radius: 8
+                        color: (row.node && row.node.default) ? Qt.alpha(root.accent, 0.20) : Qt.alpha(Theme.mauve, 0.08)
+                        Text { anchors.centerIn: parent; text: row.modelData.glyph || ""; color: (row.node && row.node.default) ? root.accent : Theme.dim
+                               font { family: root.font; pixelSize: 15 } }
+                    }
                     Text { text: row.node ? row.node.name : ""; color: Theme.text; elide: Text.ElideRight; Layout.fillWidth: true
                            font { family: root.font; pixelSize: 11 } textFormat: Text.PlainText }
-                    Text { visible: !!(row.node && row.node.default); text: "default"; color: root.accent; font { family: root.font; pixelSize: 9 } }
+                    Rectangle {
+                        visible: !!(row.node && row.node.default)
+                        implicitWidth: defTxt.implicitWidth + 14; implicitHeight: 18; radius: 9
+                        color: Qt.alpha(root.accent, 0.18)
+                        Text { id: defTxt; anchors.centerIn: parent; text: "󰄬 default"; color: root.accent; font { family: root.font; pixelSize: 9; bold: true } }
+                    }
                 }
             }
 
@@ -165,8 +172,8 @@ Item {
                     onMoved: v => root.setVolume(row.node.id, v, false)
                     onCommitted: v => root.setVolume(row.node.id, v, true)
                 }
-                Text { text: (row.node ? row.node.volume : 0) + "%"; color: Theme.subtext; Layout.preferredWidth: 34
-                       horizontalAlignment: Text.AlignRight; font { family: root.font; pixelSize: 11 } }
+                Text { text: (row.node ? row.node.volume : 0) + "%"; color: row.node && row.node.muted ? Theme.dim : Theme.bright; Layout.preferredWidth: 38
+                       horizontalAlignment: Text.AlignRight; font { family: root.font; pixelSize: 12; bold: true } }
             }
 
             // application row
