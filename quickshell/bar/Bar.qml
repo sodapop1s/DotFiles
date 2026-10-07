@@ -200,7 +200,7 @@ PanelWindow {
     }
     property var    _cpuPrev:   null
 
-    // ── Low-battery warnings (20% / 10% / 5%, once per discharge) ──
+    // ── Low-battery warnings (20% / 10% / 5% of the usable charge, once per discharge) ──
     property int batWarned: 100
     Process { id: batNotifyProc; onExited: running = false }
     function warnBattery(level, pct) {
@@ -211,12 +211,12 @@ PanelWindow {
         batNotifyProc.running = true
     }
     function checkBattery() {
-        if (batPct > 25 || batStatus === "Charging" || batStatus === "Full") { batWarned = 100; return }
+        if (batLevel > 25 || batStatus === "Charging" || batStatus === "Full" || batStatus === "Not charging") { batWarned = 100; return }
         if (batStatus !== "Discharging") return
         var levels = [5, 10, 20]
         for (var i = 0; i < levels.length; i++) {
-            if (batPct <= levels[i]) {
-                if (levels[i] < batWarned) { batWarned = levels[i]; warnBattery(levels[i], batPct) }
+            if (batLevel <= levels[i]) {
+                if (levels[i] < batWarned) { batWarned = levels[i]; warnBattery(levels[i], batLevel) }
                 return
             }
         }
