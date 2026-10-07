@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, pkgs, inputs, system, ... }:
 
 {
   # Bootloader
@@ -34,7 +34,7 @@
   # Networking
   networking.networkmanager.enable = true;
   services.tailscale.enable = true;
-  networking.firewall.trustedInterfaces = [ "tailscale0" ];
+  networking.firewall.trustedInterfaces = [ "tailscale0" "virbr0" ];
 
   # nix-ld: makes non-NixOS binaries (SMAPI, AppImages, VS Code extensions) work
   programs.nix-ld = {
@@ -54,7 +54,7 @@
   users.users.soda = {
     isNormalUser  = true;
     description   = "Soda";
-    extraGroups   = [ "networkmanager" "wheel" ];
+    extraGroups   = [ "networkmanager" "wheel" "libvirtd" "kvm" ];
     packages      = with pkgs; [];
   };
 
@@ -76,9 +76,31 @@
     options = [ "defaults" "nofail" "x-systemd.device-timeout=5s" ];
   };
 
+  # Virtualisation (QEMU/KVM + virt-manager, Windows 11 ready)
+  virtualisation.libvirtd = {
+    enable = true;
+    qemu.swtpm.enable = true;  # software TPM 2.0 — required by Windows 11
+  };
+  virtualisation.spiceUSBRedirection.enable = true;
+  programs.virt-manager.enable = true;
+
+  # Power profiles (the bar's Profile button switches between saver / balanced / performance)
+  services.power-profiles-daemon.enable = true;
+
+  # Don't suspend on lid close (keeps VMs running)
+  services.logind.lidSwitch = "ignore";
+
+  # NAT for VMs on virbr0 (libvirt's iptables rules don't apply on NixOS nftables)
+  networking.nat = {
+    enable             = true;
+    internalInterfaces = [ "virbr0" ];
+    externalInterface  = "wlp1s0";
+  };
+
   # Core services
-  services.flatpak.enable  = true;
-  services.udisks2.enable  = true;
+  services.flatpak.enable             = true;
+  services.gnome.gnome-keyring.enable = true;
+  services.udisks2.enable             = true;
   services.devmon.enable   = true;
   services.gvfs.enable     = true;
   services.tumbler.enable  = true;
@@ -125,9 +147,15 @@
     ];
   };
 
+  environment.sessionVariables.CLAUDE_DISABLE_SANDBOX = "1";
+
   environment.systemPackages = with pkgs; [
+    # Virtualisation tools
+    virt-viewer
+
     # Core tools
     neovim
+    python3          # used by the quickshell bar (calendar feed, spotify login)
     fastfetch
     git
     unzip
@@ -149,7 +177,8 @@
     swaylock
 
     # Communication / browsers
-    floorp-bin
+    inputs.zen-browser.packages.${system}.default
+    inputs.claude-desktop-extra.packages.${system}.default
     vesktop
     obsidian
 
@@ -159,18 +188,23 @@
     cloudflared
 
     # Java (needed for Minecraft tooling)
-    javaPackages.compiler.semeru-bin.jre-17
+    jdk21
 
     # Media / creative
     kdePackages.kdenlive
+    spotify-player
+    wlsunset         # night light (the bar's "Night" button)
+    ckan             # Kerbal Space Program mod manager (used by the bar's Games > KSP tab)
 
     # Gaming
+    lutris
     (prismlauncher.override {
       additionalLibs = [ libxkbcommon ] ++ (with xorg; [
         libX11 libXtst libxcb libXt libXinerama
       ]);
     })
     (callPackage ./pkgs/ninjabrain-bot.nix { })
+    (callPackage ./pkgs/matlab-fhs.nix { })
     wivrn
     olympus
     gale
