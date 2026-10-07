@@ -446,7 +446,7 @@ ColumnLayout {
             StatCell { Layout.fillWidth: true; Layout.preferredWidth: 1
                 property bool chg: bar.batCharging || bar.batHeld
                 icon: bar.batIcon()
-                label: bar.batCharging ? "Charging" : bar.batHeld ? "Plugged in" : "Battery"; value: bar.batPct + "%"; frac: bar.batLevel / 100
+                label: bar.batCharging ? "Charging" : bar.batHeld ? "Plugged in" : "Battery"; value: bar.batLevel + "%"; frac: bar.batLevel / 100
                 accent: chg ? Theme.green : bar.batLevel <= 19 ? Theme.red : bar.batLevel <= 38 ? Theme.yellow : Theme.text }
         }
     }

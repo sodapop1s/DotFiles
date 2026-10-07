@@ -187,7 +187,7 @@ PanelWindow {
     property int    cpuTemp:    0
     property int    batPct:     0
     property string batStatus:  "Unknown"
-    // The BIOS stops charging at this percent, so 80% is a "full" battery: icons and bars scale to it
+    // The BIOS stops charging at this percent, so 80% is a "full" battery: the icon, bar and the % shown all scale to it (51% real = 64%)
     readonly property int    batCap:      80
     readonly property int    batLevel:    Math.min(100, Math.round(batPct * 100 / batCap))
     readonly property bool   batCharging: batStatus === "Charging"
@@ -789,7 +789,7 @@ PanelWindow {
 
             Text {
                 property bool charging: bar.batCharging || bar.batHeld
-                text: bar.batIcon() + " " + bar.batPct + "%"
+                text: bar.batIcon() + " " + bar.batLevel + "%"
                 color: charging ? Theme.green : bar.batLevel <= 19 ? Theme.red : bar.batLevel <= 38 ? Theme.yellow : Theme.text
                 font { family: "JetBrainsMono Nerd Font"; pixelSize: 13 }
                 visible: bar.batPct >= 0
