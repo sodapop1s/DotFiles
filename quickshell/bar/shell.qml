@@ -1,6 +1,6 @@
 import Quickshell
 
 ShellRoot {
-    Bar {}
-    Notifications {}
+    Bar { id: bar; store: notifs }
+    Notifications { id: notifs; dnd: bar.dndOn }
 }
