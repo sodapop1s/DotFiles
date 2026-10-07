@@ -444,10 +444,10 @@ ColumnLayout {
                 icon: "󰔏"; label: "Temp"; value: bar.cpuTemp + "°C"; frac: Math.min(1, bar.cpuTemp / 100)
                 accent: bar.cpuTemp > 80 ? Theme.red : bar.cpuTemp > 70 ? Theme.yellow : Theme.peach }
             StatCell { Layout.fillWidth: true; Layout.preferredWidth: 1
-                property bool chg: bar.batStatus === "Charging" || bar.batStatus === "Full"
-                icon: chg ? "󰂄" : bar.batPct > 90 ? "󰁹" : bar.batPct > 70 ? "󰂂" : bar.batPct > 50 ? "󰂀" : bar.batPct > 30 ? "󰁾" : bar.batPct > 15 ? "󰁻" : "󰂎"
-                label: chg ? "Charging" : "Battery"; value: bar.batPct + "%"; frac: bar.batPct / 100
-                accent: chg ? Theme.green : bar.batPct <= 15 ? Theme.red : bar.batPct <= 30 ? Theme.yellow : Theme.text }
+                property bool chg: bar.batCharging || bar.batHeld
+                icon: bar.batIcon()
+                label: bar.batCharging ? "Charging" : bar.batHeld ? "Plugged in" : "Battery"; value: bar.batPct + "%"; frac: bar.batLevel / 100
+                accent: chg ? Theme.green : bar.batLevel <= 19 ? Theme.red : bar.batLevel <= 38 ? Theme.yellow : Theme.text }
         }
     }
 }

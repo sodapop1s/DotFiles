@@ -187,6 +187,17 @@ PanelWindow {
     property int    cpuTemp:    0
     property int    batPct:     0
     property string batStatus:  "Unknown"
+    // The BIOS stops charging at this percent, so 80% is a "full" battery: icons and bars scale to it
+    readonly property int    batCap:      80
+    readonly property int    batLevel:    Math.min(100, Math.round(batPct * 100 / batCap))
+    readonly property bool   batCharging: batStatus === "Charging"
+    readonly property bool   batHeld:     batPct >= batCap - 2 && (batStatus === "Full" || batStatus === "Not charging")   // plugged in, sitting at the cap
+    function batIcon(): string {
+        if (batCharging) return "󰂄"
+        if (batHeld) return "󰚥"
+        var l = batLevel
+        return l > 90 ? "󰁹" : l > 70 ? "󰂂" : l > 50 ? "󰂀" : l > 30 ? "󰁾" : l > 15 ? "󰁻" : "󰂎"
+    }
     property var    _cpuPrev:   null
 
     // ── Low-battery warnings (20% / 10% / 5%, once per discharge) ──
@@ -777,9 +788,9 @@ PanelWindow {
             Rectangle { width: 1; height: 16; color: Theme.sep }
 
             Text {
-                property bool charging: bar.batStatus === "Charging" || bar.batStatus === "Full"
-                text: (charging ? "󰂄" : bar.batPct > 90 ? "󰁹" : bar.batPct > 70 ? "󰂂" : bar.batPct > 50 ? "󰂀" : bar.batPct > 30 ? "󰁾" : bar.batPct > 15 ? "󰁻" : "󰂎") + " " + bar.batPct + "%"
-                color: charging ? Theme.green : bar.batPct <= 15 ? Theme.red : bar.batPct <= 30 ? Theme.yellow : Theme.text
+                property bool charging: bar.batCharging || bar.batHeld
+                text: bar.batIcon() + " " + bar.batPct + "%"
+                color: charging ? Theme.green : bar.batLevel <= 19 ? Theme.red : bar.batLevel <= 38 ? Theme.yellow : Theme.text
                 font { family: "JetBrainsMono Nerd Font"; pixelSize: 13 }
                 visible: bar.batPct >= 0
             }
