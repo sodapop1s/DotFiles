@@ -22,6 +22,9 @@
     };
   };
 
+  # Compressed RAM swap — the iGPU shares system RAM, so modded KSP OOMs without it
+  zramSwap.enable = true;
+
   # Plain btop — no ROCm dependency on the laptop
   environment.systemPackages = with pkgs; [ btop ];
 }
