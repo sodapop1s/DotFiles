@@ -26,8 +26,8 @@ case ${1:-} in
     if [ -n "$p" ]; then
       [ -d "$p" ] || fail "that folder is gone"
       case $p in "$HOME"/*) ;; *) fail "folder must be inside your home" ;; esac
-      setsid -f matlab -sd "$p" >/dev/null 2>&1 < /dev/null
-    else setsid -f matlab >/dev/null 2>&1 < /dev/null; fi
+      niri msg action spawn -- matlab -sd "$p" >/dev/null 2>&1 < /dev/null
+    else niri msg action spawn -- matlab >/dev/null 2>&1 < /dev/null; fi
     jq -cn '{ok:true}' ;;
   *) fail "usage: tools.sh matlab-folders|matlab [path]" ;;
 esac

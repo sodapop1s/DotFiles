@@ -69,7 +69,7 @@ spacing: 10
         RowLayout {
             Layout.fillWidth: true; spacing: 8
             LinkButton { Layout.fillWidth: true; Layout.preferredWidth: 1; icon: "󰐱"; text: "MATLAB"; sub: "start it"; onClicked: root.matlab("") }
-            LinkButton { Layout.fillWidth: true; Layout.preferredWidth: 1; icon: "󰎞"; text: "Obsidian"; sub: "open your vault"; tint: Theme.mauve; onClicked: root.open(["setsid", "-f", "obsidian"]) }
+            LinkButton { Layout.fillWidth: true; Layout.preferredWidth: 1; icon: "󰎞"; text: "Obsidian"; sub: "open your vault"; tint: Theme.mauve; onClicked: root.open(["niri", "msg", "action", "spawn", "--", "obsidian"]) }
             LinkButton { Layout.fillWidth: true; Layout.preferredWidth: 1; icon: "󰑴"; text: "Canvas"; sub: root.sc.configured ? root.sc.domain.replace(/^https?:\/\//, "") : "not connected"; tint: Theme.blue
                          onClicked: { if (root.sc.configured) root.open(["xdg-open", root.sc.domain]); else root.say("connect Canvas on the Due tab first", true) } }
         }

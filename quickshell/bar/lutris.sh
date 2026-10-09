@@ -40,10 +40,10 @@ case ${1:-} in
     jq -cn --argjson r "${names:-[]}" --argjson s "$(pgrep -f '(^|/)\.?lutris(-wrapped)?( |$)' >/dev/null && echo true || echo false)" '{lutris:$s, running:$r}' ;;
   launch)
     id=${2:?id}; case $id in *[!0-9]*) echo '{"error":"bad game id"}'; exit 1 ;; esac
-    setsid -f lutris "lutris:rungameid/$id" >/dev/null 2>&1 < /dev/null
+    niri msg action spawn -- lutris "lutris:rungameid/$id" >/dev/null 2>&1 < /dev/null
     echo '{"ok":true}' ;;
   open)
-    setsid -f lutris >/dev/null 2>&1 < /dev/null
+    niri msg action spawn -- lutris >/dev/null 2>&1 < /dev/null
     echo '{"ok":true}' ;;
   *) echo '{"error":"usage: lutris.sh games|status|launch <id>|open"}'; exit 1 ;;
 esac

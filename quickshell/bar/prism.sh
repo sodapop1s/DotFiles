@@ -46,7 +46,7 @@ case ${1:-} in
     done | jq -s -c 'sort_by(.group, -.lastLaunch)' ;;
   launch)
     id=${2:?instance id}; [ -d "$ROOT/instances/$id" ] || { echo '{"error":"no such instance"}'; exit 1; }
-    setsid -f prismlauncher -l "$id" >/dev/null 2>&1 < /dev/null
+    niri msg action spawn -- prismlauncher -l "$id" >/dev/null 2>&1 < /dev/null
     echo '{"ok":true}' ;;
   kill)
     id=${2:?instance id}; [ -d "$ROOT/instances/$id" ] || { echo '{"error":"no such instance"}'; exit 1; }

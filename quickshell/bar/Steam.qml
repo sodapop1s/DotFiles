@@ -43,7 +43,7 @@ Item {
     Timer { id: statusDelay; interval: 4000; onTriggered: root.refreshStatus() }
     Process { id: steamProc; onExited: running = false }
     function openSteam() {
-        steamProc.command = ["setsid", "-f", "steam"]
+        steamProc.command = ["niri", "msg", "action", "spawn", "--", "steam"]
         steamProc.running = true
         say("starting Steam…", false)
         statusDelay.restart()

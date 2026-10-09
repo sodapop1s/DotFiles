@@ -62,7 +62,7 @@ case ${1:-} in
     valid_rel "${2:-}" || fail "no such note"
     rel=${2%.md}
     url="obsidian://open?vault=$(jq -rn --arg v "$NAME" '$v|@uri')&file=$(jq -rn --arg f "$rel" '$f|@uri')"
-    setsid -f xdg-open "$url" >/dev/null 2>&1 < /dev/null
+    niri msg action spawn -- xdg-open "$url" >/dev/null 2>&1 < /dev/null
     jq -cn '{ok:true}' ;;
 
   *) fail "usage: notes.sh vault|recent [n]|search <text>|capture <text>|open <rel>|newnote <rel>" ;;

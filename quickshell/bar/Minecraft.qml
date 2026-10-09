@@ -380,7 +380,7 @@ Item {
         }
     }
     Process { id: prismProc; onExited: running = false }
-    function openPrism() { prismProc.command = ["setsid", "-f", "prismlauncher"]; prismProc.running = true }
+    function openPrism() { prismProc.command = ["niri", "msg", "action", "spawn", "--", "prismlauncher"]; prismProc.running = true }
 
     component LinkButton: Rectangle {
         id: lb

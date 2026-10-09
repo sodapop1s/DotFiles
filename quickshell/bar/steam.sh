@@ -35,7 +35,7 @@ case ${1:-} in
     jq -cn --argjson r "${running:-[]}" --argjson s "$(pgrep -x steam >/dev/null && echo true || echo false)" '{steam:$s, running:$r}' ;;
   launch)
     id=${2:?appid}; case $id in *[!0-9]*) echo '{"error":"bad appid"}'; exit 1 ;; esac
-    setsid -f steam "steam://rungameid/$id" >/dev/null 2>&1 < /dev/null
+    niri msg action spawn -- steam "steam://rungameid/$id" >/dev/null 2>&1 < /dev/null
     echo '{"ok":true}' ;;
   *) echo '{"error":"usage: steam.sh games|status|launch <appid>"}'; exit 1 ;;
 esac

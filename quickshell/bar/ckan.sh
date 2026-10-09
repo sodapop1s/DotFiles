@@ -144,8 +144,8 @@ case ${1:-} in
     path=$(instances_json | jq -r '[.[]|select(.default)][0].path // empty')
     [ -n "$path" ] || fail "no KSP instance selected"
     sp=$(steam_ksp_dir)
-    if [ -n "$sp" ] && [ "$sp" = "$path" ]; then setsid -f steam "steam://rungameid/220200" >/dev/null 2>&1 < /dev/null
-    elif [ -x "$path/KSP.x86_64" ]; then (cd "$path" && setsid -f ./KSP.x86_64 >/dev/null 2>&1 < /dev/null)
+    if [ -n "$sp" ] && [ "$sp" = "$path" ]; then niri msg action spawn -- steam "steam://rungameid/220200" >/dev/null 2>&1 < /dev/null
+    elif [ -x "$path/KSP.x86_64" ]; then niri msg action spawn -- "$path/KSP.x86_64" >/dev/null 2>&1 < /dev/null
     else fail "could not find the game to start"; fi
     jq -cn '{ok:true}' ;;
 

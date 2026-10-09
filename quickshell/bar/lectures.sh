@@ -51,7 +51,7 @@ case ${1:-} in
     case ${f,,} in *.pdf|*.m4a|*.mp3|*.wav|*.txt|*.md|*.rtf|*.png|*.jpg|*.jpeg) ;; *) fail "that kind of file is not opened from here" ;; esac
     ok=0; while IFS= read -r r; do case $(realpath -- "$f") in "$(realpath -- "$r")"/*) ok=1 ;; esac; done < <(roots)
     [ $ok = 1 ] || fail "that file is not in one of your lecture folders"
-    setsid -f xdg-open "$f" >/dev/null 2>&1 < /dev/null
+    niri msg action spawn -- xdg-open "$f" >/dev/null 2>&1 < /dev/null
     jq -cn '{ok:true}' ;;
 
   *) fail "usage: lectures.sh detect|roots|addroot <path>|droproot <path>|list|open <path>" ;;
