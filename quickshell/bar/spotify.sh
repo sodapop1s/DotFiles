@@ -108,7 +108,7 @@ case ${1:-} in
            (.device.volume_percent // 0), (.item.id // ""), (.device.name // "")] | @tsv else empty end' <<<"$out" ;;
   play)
     ctx=${2:-}; [ -n "$ctx" ] || fail "usage: spotify.sh play <context-uri> [track-uri]"
-    dev=$(api GET /me/player/devices | jq -r --arg n "$DEVICE_NAME" '[.[]?, .devices[]?] | map(select(.name==$n))[0].id // empty')
+    dev=$(api GET /me/player/devices | jq -r --arg n "$DEVICE_NAME" '(if type=="array" then . else (.devices // []) end) | map(select(.name==$n))[0].id // empty')
     [ -n "$dev" ] || fail "player device not found - is spotify_player running?"
     case $ctx in
       *:track:*) body=$(jq -cn --arg u "$ctx" '{uris:[$u]}') ;;
@@ -119,7 +119,7 @@ case ${1:-} in
     echo '{"ok":true}' ;;
   play-uris)
     idx=${2:-0}; shift 2 2>/dev/null || fail "usage: spotify.sh play-uris <index> <uri>..."
-    dev=$(api GET /me/player/devices | jq -r --arg n "$DEVICE_NAME" 'map(select(.name==$n))[0].id // empty')
+    dev=$(api GET /me/player/devices | jq -r --arg n "$DEVICE_NAME" '(if type=="array" then . else (.devices // []) end) | map(select(.name==$n))[0].id // empty')
     [ -n "$dev" ] || fail "player device not found - is spotify_player running?"
     body=$(jq -cn --argjson i "$idx" '{uris: $ARGS.positional, offset:{position:$i}}' --args "$@")
     api PUT "/me/player/play?device_id=$dev" "$body" >/dev/null || exit 1
