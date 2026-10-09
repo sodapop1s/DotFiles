@@ -14,28 +14,126 @@ PanelWindow {
     exclusiveZone: 44
     WlrLayershell.keyboardFocus: hubOpen ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-    // ── Catppuccin Mocha ──────────────────────────────────
-    readonly property color cIslandBg:     Qt.rgba(49/255,  50/255,  68/255,  0.92)
-    readonly property color cIslandBorder: Qt.rgba(203/255, 166/255, 247/255, 0.15)
-    readonly property color cSep:          Qt.rgba(203/255, 166/255, 247/255, 0.25)
-    readonly property color cText:   "#b4befe"
-    readonly property color cMauve:  "#cba6f7"
-    readonly property color cPink:   "#f5c2e7"
-    readonly property color cPeach:  "#fab387"
-    readonly property color cTeal:   "#94e2d5"
-    readonly property color cSky:    "#89dceb"
-    readonly property color cGreen:  "#a6e3a1"
-    readonly property color cYellow: "#f9e2af"
-    readonly property color cRed:    "#f38ba8"
-    readonly property color cDim:    "#6c7086"
-    readonly property color cCrust:  "#11111b"
+    Process { id: lockProc; command: ["swaylock"]; onExited: running = false }
+    Process { id: powerProc; onExited: running = false }
+
+    // School tab: Canvas/calendar data, study timer, focus mode
+    SchoolData  { id: schoolData; bar: bar }
+    FocusState  { id: focusState; bar: bar; school: schoolData }
+    property alias school: schoolData
+    property alias studyFocus: focusState
+
+    // Processes the hub pages (HomePage, WifiView, PowerView) drive
+    property alias appLoadProc: appLoadProc
+    property alias brightSetProc: brightSetProc
+    property alias volSetProc: volSetProc
+    property alias wifiToggleProc: wifiToggleProc
+    property alias wifiConnectProc: wifiConnectProc
+    property alias wifiScanProc: wifiScanProc
+    property alias powerProc: powerProc
+    property alias lockProc: lockProc
 
     // ── Hub ───────────────────────────────────────────────
     property bool hubOpen: false
 
+    // notification store (history, unread count, clear) — provided by shell.qml
+    property var store: null
+    property int nowTick: 0
+    property string timerText: ""        // running timer from the Calendar applet, shown by the clock
+
+    // applets shown in the hub's Apps dock; id doubles as the hubView name
+    readonly property var applets: [
+        { id: "notifs",     label: "Alerts",     icon: "󰂜", accent: Theme.mauve },
+        { id: "spotify",    label: "Spotify",    icon: "󰓇", accent: Theme.green },
+        { id: "calendar",   label: "Calendar",   icon: "󰃭", accent: Theme.blue },
+        { id: "wallpapers", label: "Wallpaper",  icon: "󰸉", accent: Theme.pink },
+        { id: "clipboard",  label: "Clipboard",  icon: "󰅌", accent: Theme.yellow },
+        { id: "mixer",      label: "Audio",      icon: "󰋋", accent: Theme.teal },
+        { id: "shots",      label: "Capture",    icon: "󰄀", accent: Theme.peach },
+        { id: "windows",    label: "Windows",    icon: "󰖯", accent: Theme.sky },
+        { id: "theme",      label: "Theme",      icon: "󰏘", accent: Theme.mauve }
+    ]
+    readonly property var appletHeights: ({ calendar: 590, wallpapers: 520, clipboard: 540, mixer: 540, shots: 540, games: 650, school: 700, theme: 560, windows: 560 })
+    function activateApplet(v) {
+        var a = ({ calendar: calView, wallpapers: wallView, clipboard: clipView, mixer: mixView,
+                   shots: shotView, games: gamesView, school: schoolView, windows: winView })[v]
+        if (a && a.activate) a.activate()
+    }
+
+    // ── Spotify: shared state (browsing/controlling lives in Spotify.qml) ──
+    readonly property string spScript: Quickshell.shellPath("spotify.sh")
+    // preferences, persisted: { notify: bool, recents: { <playlist/album uri>: <timestamp> } }
+    property var spPrefs: ({ notify: false, recents: {} })
+    FileView {
+        id: spPrefsFile
+        path: Quickshell.env("HOME") + "/.local/state/qs-bar-spotify-prefs.json"
+        onLoaded: { try { bar.spPrefs = Object.assign({ notify: false, recents: {} }, JSON.parse(spPrefsFile.text())) } catch(e) {} }
+    }
+    function saveSpPrefs() { spPrefsFile.setText(JSON.stringify(spPrefs)) }
+
+    // "Artist – Title" popup when the song changes (off by default; DND silences it)
+    property string _lastTrackKey: ""
+    Process { id: spNotifyProc; onExited: running = false }
+    function checkTrackNotify() {
+        var key = (mediaTrackId || (mediaTitle + "|" + mediaArtist))
+        if (spPrefs.notify && mediaStatus === "Playing" && _lastTrackKey !== "" && key !== _lastTrackKey
+            && mediaTitle.length > 0 && !spNotifyProc.running) {
+            spNotifyProc.command = ["notify-send", "-a", "Spotify", "-u", "low", mediaTitle, mediaArtist]
+            spNotifyProc.running = true
+        }
+        _lastTrackKey = key
+    }
+
+    Timer { interval: 30000; repeat: true; running: bar.hubOpen; onTriggered: bar.nowTick++ }
+    function ago(t, _tick) {
+        var s = Math.max(0, Math.round((Date.now() - t) / 1000))
+        if (s < 45)    return "now"
+        if (s < 3600)  return Math.max(1, Math.round(s / 60)) + "m"
+        if (s < 86400) return Math.round(s / 3600) + "h"
+        return Math.round(s / 86400) + "d"
+    }
+
+    IpcHandler {
+        target: "dnd"
+        function toggle(): void { bar.dndOn = !bar.dndOn }
+        function on(): void  { bar.dndOn = true }
+        function off(): void { bar.dndOn = false }
+    }
+
     IpcHandler {
         target: "hub"
         function toggle(): void { bar.hubOpen = !bar.hubOpen }
+        function open(view: string): void {
+            if (view === "minecraft" || view === "steam" || view === "lutris" || view === "ksp") { bar.hubView = "games"; bar.hubOpen = true; gamesView.setTab(view); return }
+            if (view === "school" || view === "due" || view === "exams" || view === "grades" || view === "focus" || view === "notes" || view === "aero" || view === "money" || view === "tools" || view === "week" || view === "review" || view === "lectures") {
+                bar.hubView = "school"; bar.hubOpen = true; schoolView.setTab(view === "school" ? "due" : view === "review" ? "week" : view === "lectures" ? "notes" : view); if (view === "lectures") schoolView.notes.pane = "lectures"; return
+            }
+            if (view === "capture") { bar.hubView = "school"; bar.hubOpen = true; schoolView.captureNote(); return }
+            bar.hubView = view; bar.hubOpen = true
+        }
+        // press Enter in the search box (for testing and scripts): qs -c bar ipc call hub submit
+        function submit(): void { hubContent.tryAsk() }
+        function launch(name: string): void { bar.launchApp(bar.appList.find(x => x.name.toLowerCase() === name.toLowerCase())) }
+        // run a method of an applet, e.g. `hub applet minecraft toggleMenu` (handy for testing)
+        function applet(view: string, action: string): void {
+            var launcher = (view === "minecraft" || view === "steam" || view === "lutris" || view === "ksp")
+            if (view === "school") { bar.hubView = "school"; bar.hubOpen = true; schoolView.activate(); if (schoolView[action]) schoolView[action](); return }
+            bar.hubView = launcher ? "games" : view; bar.hubOpen = true
+            if (launcher) gamesView.setTab(view)
+            var m = ({ calendar: calView, wallpapers: wallView, clipboard: clipView, mixer: mixView, shots: shotView, games: gamesView, minecraft: gamesView.mc, steam: gamesView.steam, lutris: gamesView.lutris, ksp: gamesView.ksp })[view]
+            if (m && m[action]) m[action]()
+        }
+        function spotify(tab: string, query: string): void {
+            bar.hubView = "spotify"; bar.hubOpen = true
+            if (tab.startsWith("page:")) {      // e.g. page:playlist:<id> (for testing)
+                var p = tab.split(":")
+                spView.openPage({ kind: p[1], id: p[2], uri: "spotify:" + p[1] + ":" + p[2], name: query || "Page" })
+                return
+            }
+            spView.setTab(tab)
+            if (query.length > 0) spView.setQuery(query)
+        }
+        function search(q: string): void { bar.hubView = "main"; bar.hubOpen = true; hubContent.searchInput.text = q }
     }
 
     // ── Niri workspaces + focused window ─────────────────
@@ -89,7 +187,50 @@ PanelWindow {
     property int    cpuTemp:    0
     property int    batPct:     0
     property string batStatus:  "Unknown"
+    // The BIOS stops charging at this percent, so 80% is a "full" battery: the icon, bar and the % shown all scale to it (51% real = 64%)
+    readonly property int    batCap:      80
+    readonly property int    batLevel:    Math.min(100, Math.round(batPct * 100 / batCap))
+    readonly property bool   batCharging: batStatus === "Charging"
+    readonly property bool   batHeld:     batPct >= batCap - 2 && (batStatus === "Full" || batStatus === "Not charging")   // plugged in, sitting at the cap
+    function batIcon(): string {
+        if (batCharging) return "󰂄"
+        if (batHeld) return "󰚥"
+        var l = batLevel
+        return l > 90 ? "󰁹" : l > 70 ? "󰂂" : l > 50 ? "󰂀" : l > 30 ? "󰁾" : l > 15 ? "󰁻" : "󰂎"
+    }
     property var    _cpuPrev:   null
+
+    // ── Low-battery warnings (20% / 10% / 5% of the usable charge, once per discharge) ──
+    property int batWarned: 100
+    Process { id: batNotifyProc; onExited: running = false }
+    function warnBattery(level, pct) {
+        if (batNotifyProc.running) return
+        batNotifyProc.command = ["notify-send", "-a", "Battery", "-u", level <= 10 ? "critical" : "normal",
+            level <= 5 ? "Battery critically low" : "Battery low",
+            pct + "% remaining — plug in soon"]
+        batNotifyProc.running = true
+    }
+    function checkBattery() {
+        if (batLevel > 25 || batStatus === "Charging" || batStatus === "Full" || batStatus === "Not charging") { batWarned = 100; return }
+        if (batStatus !== "Discharging") return
+        var levels = [5, 10, 20]
+        for (var i = 0; i < levels.length; i++) {
+            if (batLevel <= levels[i]) {
+                if (levels[i] < batWarned) { batWarned = levels[i]; warnBattery(levels[i], batLevel) }
+                return
+            }
+        }
+    }
+    // dev aid: render only the hub card (never the rest of the screen) to a PNG
+    IpcHandler {
+        target: "snap"
+        function hub(path: string): void { centerIsland.grabToImage(function(r) { r.saveToFile(path) }) }
+    }
+
+    IpcHandler {
+        target: "power"
+        function warn(level: int): void { bar.warnBattery(level, level) }
+    }
 
     Process {
         id: statsProc
@@ -124,6 +265,7 @@ PanelWindow {
                         var pct = parseInt(p[1])
                         if (pct >= 0) bar.batPct = pct
                         bar.batStatus = p[2]
+                        bar.checkBattery()
                     }
                 })
             }
@@ -135,12 +277,18 @@ PanelWindow {
 
     // ── Network ───────────────────────────────────────────
     property int netSignal: -1
+    property string wifiSsid: ""
 
     Process {
         id: netProc
-        command: ["bash", "-c", "nmcli -t -f active,signal dev wifi 2>/dev/null | grep '^yes' | head -1 | cut -d: -f2"]
-        stdout: SplitParser { onRead: data => { var s = data.trim(); bar.netSignal = s.length > 0 ? parseInt(s) : -1 } }
-        onExited: running = false
+        command: ["bash", "-c", "nmcli --escape no -t -f active,ssid,signal dev wifi 2>/dev/null | grep '^yes' | head -1"]
+        property bool got: false
+        stdout: SplitParser { onRead: data => {
+            var p = data.trim().split(":")
+            if (p.length >= 3) { bar.netSignal = parseInt(p[p.length - 1]); bar.wifiSsid = p.slice(1, p.length - 1).join(":"); netProc.got = true }
+        } }
+        onStarted: got = false
+        onExited: { if (!got) { bar.netSignal = -1; bar.wifiSsid = "" } running = false }
     }
 
     Timer { interval: 10000; repeat: true; running: true; triggeredOnStart: true; onTriggered: { if (!netProc.running) netProc.running = true } }
@@ -221,9 +369,19 @@ PanelWindow {
     Timer { interval: 8000; repeat: true; running: true; triggeredOnStart: true; onTriggered: { if (!wifiReadProc.running) wifiReadProc.running = true } }
 
     // ── Media (playerctl) ────────────────────────────────
+    // Several MPRIS players can exist at once (browser tab + spotify_player). Control the one
+    // that is actually playing; otherwise prefer spotify_player, then whatever is first.
+    readonly property string mediaPick:
+        "p=$(for x in $(playerctl -l 2>/dev/null); do [ \"$(playerctl -p $x status 2>/dev/null)\" = Playing ] && { echo $x; break; }; done); " +
+        "[ -n \"$p\" ] || p=$(playerctl -l 2>/dev/null | grep -m1 '^spotify_player$' || playerctl -l 2>/dev/null | head -n 1); " +
+        "[ -n \"$p\" ] || exit 1; "
+
     Process {
         id: mediaProc
-        command: ["playerctl", "metadata", "--format", "{{status}}\t{{title}}\t{{artist}}"]
+        command: ["bash", "-c", bar.mediaPick +
+            "out=$(playerctl -p \"$p\" metadata --format '{{status}}\t{{title}}\t{{artist}}\t{{position}}\t{{mpris:length}}' | " +
+            "awk -F'\\t' -v OFS='\\t' '{$4=int($4/1000);$5=int($5/1000);print}'); " +
+            "if [ \"$p\" = spotify_player ] && [ -z \"$(printf %s \"$out\" | cut -f2)\" ]; then out=$(bash '" + bar.spScript + "' nowline); fi; printf '%s\\n' \"$out\""]
         property string buf: ""
         stdout: SplitParser { onRead: data => { mediaProc.buf += data } }
         onExited: (code) => {
@@ -232,10 +390,30 @@ PanelWindow {
                 bar.mediaStatus = parts[0] || "Stopped"
                 bar.mediaTitle  = parts[1] || ""
                 bar.mediaArtist = parts[2] || ""
+                if (parts.length >= 9) {
+                    bar.spActive = true
+                    if (Date.now() > bar.ctlHoldUntil) {
+                        bar.mediaShuffle = parts[5] === "true"
+                        bar.mediaRepeat  = parts[6] || "off"
+                        bar.mediaVolume  = parseInt(parts[7]) || 0
+                    }
+                    bar.mediaTrackId = parts[8] || ""
+                    bar.mediaDevice  = parts[9] || ""
+                } else {
+                    bar.spActive = false; bar.mediaTrackId = ""; bar.mediaDevice = ""
+                }
+                bar.checkTrackNotify()
+                if (Date.now() > bar.seekHoldUntil) {
+                    bar.mediaPosMs   = parseInt(parts[3]) || 0
+                    bar.mediaLenMs   = parseInt(parts[4]) || 0
+                    bar.mediaPosAt   = Date.now()
+                }
             } else {
                 bar.mediaStatus = "Stopped"
                 bar.mediaTitle  = ""
                 bar.mediaArtist = ""
+                bar.mediaPosMs = 0; bar.mediaLenMs = 0
+                bar.spActive = false; bar.mediaTrackId = ""
             }
             buf = ""; running = false
         }
@@ -243,9 +421,9 @@ PanelWindow {
 
     Timer { interval: 2000; repeat: true; running: true; triggeredOnStart: true; onTriggered: { if (!mediaProc.running) mediaProc.running = true } }
 
-    Process { id: mediaPlayProc; command: ["playerctl", "play-pause"]; onExited: { running = false; if (!mediaProc.running) mediaProc.running = true } }
-    Process { id: mediaPrevProc; command: ["playerctl", "previous"];   onExited: { running = false; if (!mediaProc.running) mediaProc.running = true } }
-    Process { id: mediaNextProc; command: ["playerctl", "next"];       onExited: { running = false; if (!mediaProc.running) mediaProc.running = true } }
+    Process { id: mediaPlayProc; command: ["bash", "-c", bar.mediaPick + "if [ \"$p\" = spotify_player ]; then bash '" + bar.spScript + "' control playpause; else playerctl -p \"$p\" play-pause; fi"]; onExited: { running = false; if (!mediaProc.running) mediaProc.running = true } }
+    Process { id: mediaPrevProc; command: ["bash", "-c", bar.mediaPick + "if [ \"$p\" = spotify_player ]; then bash '" + bar.spScript + "' control prev; else playerctl -p \"$p\" previous; fi"]; onExited: { running = false; if (!mediaProc.running) mediaProc.running = true } }
+    Process { id: mediaNextProc; command: ["bash", "-c", bar.mediaPick + "if [ \"$p\" = spotify_player ]; then bash '" + bar.spScript + "' control next; else playerctl -p \"$p\" next; fi"]; onExited: { running = false; if (!mediaProc.running) mediaProc.running = true } }
 
     // ── DND (local state) ─────────────────────────────────
     property bool dndOn: false
@@ -254,23 +432,71 @@ PanelWindow {
     property string mediaStatus: "Stopped"
     property string mediaTitle:  ""
     property string mediaArtist: ""
+    property real   mediaPosMs:  0      // position at the last poll
+    property real   mediaLenMs:  0
+    property real   mediaPosAt:  0      // Date.now() of that poll
+    property real   seekHoldUntil: 0    // ignore polls briefly after a seek so the bar doesn't jump back
+    property int    mediaTick:   0
+    // extra state that only the Spotify API source provides
+    property bool   spActive:      false    // the player in use is spotify_player (data comes from the Web API)
+    property bool   mediaShuffle:  false
+    property string mediaRepeat:   "off"
+    property int    mediaVolume:   0
+    property string mediaTrackId:  ""
+    property string mediaDevice:   ""
+    property real   ctlHoldUntil:  0        // ignore polls briefly after changing shuffle/repeat/volume
+    function pollMedia()      { if (!mediaProc.running) mediaProc.running = true }
+    function mediaPlayPause() { if (!mediaPlayProc.running) mediaPlayProc.running = true }
+    function mediaPrev()      { if (!mediaPrevProc.running) mediaPrevProc.running = true }
+    function mediaNext()      { if (!mediaNextProc.running) mediaNextProc.running = true }
+    function seekTo(ms)       { mediaSeekProc.seekTo(ms) }
+    function openPavucontrol() { launchPavuctl.running = true }
+    // live position: interpolate between polls while playing
+    function mediaNowMs(_tick) {
+        var p = mediaPosMs + (mediaStatus === "Playing" ? Date.now() - mediaPosAt : 0)
+        return Math.max(0, mediaLenMs > 0 ? Math.min(mediaLenMs, p) : p)
+    }
+    function fmtTime(ms) {
+        var s = Math.floor(ms / 1000), m = Math.floor(s / 60)
+        return m + ":" + (s % 60).toString().padStart(2, "0")
+    }
+    Timer { interval: 500; repeat: true; running: bar.hubOpen && bar.hubView === "spotify"; onTriggered: bar.mediaTick++ }
+
+    Process {
+        id: mediaSeekProc
+        onExited: { running = false; if (!mediaProc.running) mediaProc.running = true }
+        function seekTo(ms) {
+            ms = Math.max(0, Math.round(ms))
+            bar.mediaPosMs = ms; bar.mediaPosAt = Date.now(); bar.seekHoldUntil = Date.now() + 3000
+            if (running) return
+            command = ["bash", "-c", bar.mediaPick +
+                "if [ \"$p\" = spotify_player ]; then bash '" + bar.spScript + "' control seek " + ms + "; " +
+                "else playerctl -p \"$p\" position " + (ms / 1000).toFixed(2) + "; fi"]
+            running = true
+        }
+    }
 
     // ── Hub view state ────────────────────────────────────
     property string hubView: "main"   // "main" | "wifi" | "bt"
     property var    wifiNetworks: []
     property var    btDevices: {
-        var devs = Bluetooth.defaultAdapter?.devices?.values ?? []
-        return devs.filter(d => d.paired || d.connected || d.trusted)
+        var ad = Bluetooth.defaultAdapter
+        var devs = ad?.devices?.values ?? []
+        var scanning = ad?.discovering ?? false
+        var rank = d => d.connected ? 0 : (d.paired || d.bonded || d.trusted) ? 1 : 2
+        return devs.filter(d => d.connected || d.paired || d.bonded || d.trusted || (scanning && d.name && d.name !== d.address))
+                   .sort((a, b) => rank(a) - rank(b) || (a.name || a.address).localeCompare(b.name || b.address))
     }
     property int currentHubHeight: {
         if (!hubOpen) return 32
-        if (hubView === "wifi") return Math.max(200, 101 + Math.min(wifiNetworks.length, 7) * 42)
-        if (hubView === "bt")   return Math.max(200, 101 + Math.min(btDevices.length,   7) * 42)
+        if (hubView === "wifi") return Math.max(280, 124 + Math.min(wifiNetworks.length, 7) * 52)
+        if (hubView === "notifs") return 440
+        if (hubView === "power")  return 310
+        if (appletHeights[hubView] !== undefined) return appletHeights[hubView]
+        if (hubView === "spotify") return 580
+        if (hubView === "bt")   return Math.max(280, 124 + Math.min(btDevices.length, 7) * 52)
         // main view: 60 (island padding) + 48 (search bar + gap) + content
-        if (searchQuery.length >= 2) return Math.max(180, 108 + Math.min(searchResults.length, 6) * 42)
-        var base = 314
-    if (mediaTitle.length > 0 && mediaStatus !== "Stopped") base += 44
-    return base
+        return Math.max(180, hubContent.implicitHeight + 88 + 14)
     }
 
     Process {
@@ -311,50 +537,87 @@ PanelWindow {
         }
     }
 
-    Process {
-        id: btActionProc
-        onExited: running = false
-        function connectDevice(addr)    { command = ["bluetoothctl", "connect",    addr]; running = true }
-        function disconnectDevice(addr) { command = ["bluetoothctl", "disconnect", addr]; running = true }
-    }
-
     // ── App search ────────────────────────────────────────
     property var    appList:     []
     property string searchQuery: ""
+    property int selIndex: 0
+    onSearchQueryChanged: selIndex = 0
+
+    // launch history: { "App Name": { count, last } }, persisted
+    property var recents: ({})
+    FileView {
+        id: recentStore
+        path: Quickshell.env("HOME") + "/.local/state/qs-bar-recent.json"
+        onLoaded: { try { bar.recents = JSON.parse(recentStore.text()) } catch(e) {} }
+    }
+    function launchApp(app) {
+        if (!app) return
+        if (studyFocus.isBlocked(app)) { schoolData.notify("Focus mode is on", app.name + " is blocked until focus mode ends."); return }
+        var r = Object.assign({}, bar.recents)
+        var cur = r[app.name] || { count: 0, last: 0 }
+        r[app.name] = { count: cur.count + 1, last: Date.now() }
+        bar.recents = r
+        recentStore.setText(JSON.stringify(r))
+        appLaunchProc.launch(app.exec)
+        bar.hubOpen = false
+    }
+    function iconSrc(icon) {
+        if (!icon) return ""
+        if (icon.startsWith("/")) return "file://" + icon
+        return Quickshell.iconPath(icon, true)
+    }
+
+    property var recentApps: {
+        var names = Object.keys(recents).sort((a, b) => recents[b].last - recents[a].last)
+        var out = []
+        for (var i = 0; i < names.length && out.length < 4; i++) {
+            var app = appList.find(a => a.name === names[i])
+            if (app) out.push(app)
+        }
+        return out
+    }
+
     property var searchResults: {
-        if (searchQuery.length < 2) return []
+        if (searchQuery.length < 1 || searchQuery.trim().startsWith("=") || searchQuery.trim().startsWith("?")) return []
         var q = searchQuery.toLowerCase()
-        var r = appList.filter(a => a.name.toLowerCase().includes(q))
+        var tier = a => {
+            var n = a.name.toLowerCase()
+            if (n.startsWith(q)) return 0
+            if (n.includes(" " + q)) return 1
+            if (n.includes(q)) return 2
+            if ((a.exec || "").toLowerCase().includes(q)) return 3
+            return 9
+        }
+        var r = appList.filter(a => tier(a) < 9)
         r.sort((a, b) => {
-            var ai = a.name.toLowerCase().indexOf(q), bi = b.name.toLowerCase().indexOf(q)
-            return ai !== bi ? ai - bi : a.name.localeCompare(b.name)
+            var ta = tier(a), tb = tier(b)
+            if (ta !== tb) return ta - tb
+            var ca = recents[a.name]?.count ?? 0, cb = recents[b.name]?.count ?? 0
+            if (ca !== cb) return cb - ca
+            return a.name.localeCompare(b.name)
         })
         return r.slice(0, 6)
     }
 
-    readonly property string _pyAppScript: [
-        "import os,re,json,glob",
-        "dirs=['/run/current-system/sw/share/applications',os.path.expanduser('~/.local/share/applications')]",
-        "apps,seen=[],set()",
-        "for d in dirs:",
-        " if not os.path.isdir(d):continue",
-        " for p in glob.glob(d+'/*.desktop'):",
-        "  try:",
-        "   c=open(p).read()",
-        "   if re.search(r'^NoDisplay=true',c,re.M|re.I):continue",
-        "   if not re.search(r'^Type=Application',c,re.M):continue",
-        "   n=re.search(r'^Name=(.+)',c,re.M);e=re.search(r'^Exec=(.+)',c,re.M)",
-        "   if not n or not e or n.group(1) in seen:continue",
-        "   seen.add(n.group(1))",
-        "   apps.append({'name':n.group(1),'exec':re.sub(r' *%[fFuUdDnNickvm]','',e.group(1)).strip()})",
-        "  except:pass",
-        "apps.sort(key=lambda x:x['name'].lower())",
-        "print(json.dumps(apps))"
+    readonly property string _appScript: [
+        "for base in $(printf %s \"$HOME/.local/share:$HOME/.nix-profile/share:/etc/profiles/per-user/$USER/share:/run/current-system/sw/share:/nix/var/nix/profiles/default/share:$HOME/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:/var/lib/snapd/desktop:/usr/local/share:/usr/share:$XDG_DATA_DIRS\" | tr : \" \"); do",
+        "  dir=\"$base/applications\"",
+        "  [ -d \"$dir\" ] || continue",
+        "  for f in \"$dir\"/*.desktop; do",
+        "    [ -f \"$f\" ] || continue",
+        "    grep -qi \"^NoDisplay=true\" \"$f\" && continue",
+        "    grep -q \"^Type=Application\" \"$f\" || continue",
+        "    n=$(grep -m1 \"^Name=\" \"$f\" | cut -d= -f2-)",
+        "    e=$(grep -m1 \"^Exec=\" \"$f\" | cut -d= -f2- | sed \"s/ *%[fFuUdDnNickvm]//g;s/^[[:space:]]*//;s/[[:space:]]*$//\")",
+        "    ic=$(grep -m1 \"^Icon=\" \"$f\" | cut -d= -f2-)",
+        "    [ -n \"$n\" ] && [ -n \"$e\" ] && printf \"%s\\t%s\\t%s\\n\" \"$n\" \"$e\" \"$ic\"",
+        "  done",
+        "done | sort -t\"$(printf \"\\t\")\" -k1,1 | awk -F\"\\t\" \"!seen[\\$1]++\" | jq -Rn \"[inputs | split(\\\"\\\\t\\\") | {name: .[0], exec: .[1], icon: .[2]}]\""
     ].join("\n")
 
     Process {
         id: appLoadProc
-        command: ["python3", "-c", bar._pyAppScript]
+        command: ["bash", "-c", bar._appScript]
         property string buf: ""
         stdout: SplitParser { onRead: data => { appLoadProc.buf += data } }
         onExited: (code) => {
@@ -383,8 +646,8 @@ PanelWindow {
         height: 32
         width: leftRow.implicitWidth + 18
         radius: 10
-        color: bar.cIslandBg
-        border { color: bar.cIslandBorder; width: 1 }
+        color: Theme.islandBg
+        border { color: Theme.islandBorder; width: 1 }
 
         RowLayout {
             id: leftRow
@@ -393,38 +656,59 @@ PanelWindow {
 
             Text {
                 text: "  "
-                color: bar.cMauve
+                color: Theme.mauve
                 font { family: "JetBrainsMono Nerd Font"; pixelSize: 16 }
                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: launchRofi.running = true }
             }
 
-            Rectangle { width: 1; height: 20; color: bar.cSep }
+            Rectangle { width: 1; height: 20; color: Theme.sep }
 
             Repeater {
                 model: bar.workspaces
                 delegate: Rectangle {
                     required property var modelData
                     width: 26; height: 26; radius: 7
-                    color: modelData.is_focused ? bar.cMauve : "transparent"
+                    color: modelData.is_focused ? Theme.mauve : "transparent"
                     Text {
                         anchors.centerIn: parent
                         text: modelData.idx.toString()
-                        color: modelData.is_focused ? bar.cCrust : bar.cDim
+                        color: modelData.is_focused ? Theme.crust : Theme.dim
                         font { family: "JetBrainsMono Nerd Font"; pixelSize: 12; bold: modelData.is_focused }
                     }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: wsActionProc.focus(modelData.idx) }
                 }
             }
 
-            Rectangle { width: 1; height: 20; color: bar.cSep; visible: bar.focusedTitle.length > 0 }
+            Rectangle { width: 1; height: 20; color: Theme.sep; visible: bar.focusedTitle.length > 0 }
 
             Text {
                 visible: bar.focusedTitle.length > 0
                 text: bar.focusedTitle
-                color: bar.cText
+                color: Theme.text
                 font { family: "JetBrainsMono Nerd Font"; pixelSize: 13; italic: true }
                 elide: Text.ElideRight
                 Layout.maximumWidth: 260
+                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { bar.hubView = "windows"; bar.hubOpen = true; winView.activate() } }
+            }
+
+            Rectangle { width: 1; height: 20; color: Theme.sep; visible: bar.mediaTitle.length > 0 && bar.mediaStatus !== "Stopped" && bar.spActive }
+
+            Text {
+                visible: bar.mediaTitle.length > 0 && bar.mediaStatus !== "Stopped" && bar.spActive
+                text: "󰓇 " + (bar.mediaArtist.length > 0 ? bar.mediaArtist + " – " : "") + bar.mediaTitle
+                color: bar.mediaStatus === "Playing" ? Theme.green : Theme.dim
+                elide: Text.ElideRight
+                Layout.maximumWidth: 240
+                font { family: "JetBrainsMono Nerd Font"; pixelSize: 12 }
+                textFormat: Text.PlainText
+                MouseArea {
+                    anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    onClicked: mouse => {
+                        if (mouse.button === Qt.RightButton) { bar.hubView = "spotify"; bar.hubOpen = true }
+                        else bar.mediaPlayPause()
+                    }
+                }
             }
         }
     }
@@ -435,46 +719,64 @@ PanelWindow {
         height: 32
         width: rightRow.implicitWidth + 18
         radius: 10
-        color: bar.cIslandBg
-        border { color: bar.cIslandBorder; width: 1 }
+        color: Theme.islandBg
+        border { color: Theme.islandBorder; width: 1 }
 
         RowLayout {
             id: rightRow
             anchors.centerIn: parent
             spacing: 8
 
-            Text { text: " " + bar.cpuUsage + "%"; color: bar.cpuUsage > 80 ? bar.cRed : bar.cTeal; font { family: "JetBrainsMono Nerd Font"; pixelSize: 13 } }
-            Rectangle { width: 1; height: 16; color: bar.cSep }
-            Text { text: " " + bar.memPercent + "%"; color: bar.memPercent > 80 ? bar.cRed : bar.cTeal; font { family: "JetBrainsMono Nerd Font"; pixelSize: 13 } }
-            Rectangle { width: 1; height: 16; color: bar.cSep }
-            Text { text: " " + bar.cpuTemp + "°C"; color: bar.cpuTemp > 80 ? bar.cRed : (bar.cpuTemp > 70 ? bar.cYellow : bar.cPeach); font { family: "JetBrainsMono Nerd Font"; pixelSize: 13 } }
-            Rectangle { width: 1; height: 16; color: bar.cSep }
+            Text {
+                visible: (bar.store?.unread ?? 0) > 0
+                text: "󰂚 " + (bar.store?.unread ?? 0)
+                color: Theme.mauve
+                font { family: "JetBrainsMono Nerd Font"; pixelSize: 13 }
+                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { bar.hubView = "notifs"; bar.hubOpen = true } }
+            }
+            Rectangle { visible: (bar.store?.unread ?? 0) > 0; width: 1; height: 16; color: Theme.sep }
+
+            Text {
+                visible: bar.dndOn
+                text: "󰂛"
+                color: Theme.peach
+                font { family: "JetBrainsMono Nerd Font"; pixelSize: 15 }
+                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: bar.dndOn = false }
+            }
+            Rectangle { visible: bar.dndOn; width: 1; height: 16; color: Theme.sep }
+
+            Text { text: " " + bar.cpuUsage + "%"; color: bar.cpuUsage > 80 ? Theme.red : Theme.teal; font { family: "JetBrainsMono Nerd Font"; pixelSize: 13 } }
+            Rectangle { width: 1; height: 16; color: Theme.sep }
+            Text { text: " " + bar.memPercent + "%"; color: bar.memPercent > 80 ? Theme.red : Theme.teal; font { family: "JetBrainsMono Nerd Font"; pixelSize: 13 } }
+            Rectangle { width: 1; height: 16; color: Theme.sep }
+            Text { text: " " + bar.cpuTemp + "°C"; color: bar.cpuTemp > 80 ? Theme.red : (bar.cpuTemp > 70 ? Theme.yellow : Theme.peach); font { family: "JetBrainsMono Nerd Font"; pixelSize: 13 } }
+            Rectangle { width: 1; height: 16; color: Theme.sep }
 
             Text {
                 property var  adapter:   Bluetooth.defaultAdapter
                 property var  connected: adapter?.devices?.values?.filter(d => d.connected) ?? []
-                property bool powered:   adapter?.powered ?? false
+                property bool powered:   adapter?.enabled ?? false
                 text: connected.length > 0 ? "󰂯 " + (connected[0].name?.substring(0, 12) ?? "") : (powered ? "󰂯" : "󰂲")
-                color: connected.length > 0 ? bar.cSky : (powered ? bar.cText : bar.cDim)
+                color: connected.length > 0 ? Theme.sky : (powered ? Theme.text : Theme.dim)
                 font { family: "JetBrainsMono Nerd Font"; pixelSize: 14 }
                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: launchBlueman.running = true }
             }
 
-            Rectangle { width: 1; height: 16; color: bar.cSep }
+            Rectangle { width: 1; height: 16; color: Theme.sep }
 
             Text {
                 property string wifiIcon: bar.netSignal < 0 ? "󰤭" : bar.netSignal <= 20 ? "󰤯" : bar.netSignal <= 40 ? "󰤟" : bar.netSignal <= 60 ? "󰤢" : bar.netSignal <= 80 ? "󰤥" : "󰤨"
                 text: wifiIcon
-                color: bar.netSignal >= 0 ? bar.cSky : bar.cDim
+                color: bar.netSignal >= 0 ? Theme.sky : Theme.dim
                 font { family: "JetBrainsMono Nerd Font"; pixelSize: 16 }
                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: launchNmEditor.running = true }
             }
 
-            Rectangle { width: 1; height: 16; color: bar.cSep }
+            Rectangle { width: 1; height: 16; color: Theme.sep }
 
             Text {
                 text: bar.volMuted ? "󰝟 " + bar.volPct + "%" : (bar.volPct > 66 ? "󰕾 " : bar.volPct > 33 ? "󰖀 " : "󰕿 ") + bar.volPct + "%"
-                color: bar.volMuted ? bar.cDim : bar.cTeal
+                color: bar.volMuted ? Theme.dim : Theme.teal
                 font { family: "JetBrainsMono Nerd Font"; pixelSize: 13 }
                 MouseArea {
                     anchors.fill: parent; cursorShape: Qt.PointingHandCursor
@@ -483,12 +785,12 @@ PanelWindow {
                 }
             }
 
-            Rectangle { width: 1; height: 16; color: bar.cSep }
+            Rectangle { width: 1; height: 16; color: Theme.sep }
 
             Text {
-                property bool charging: bar.batStatus === "Charging" || bar.batStatus === "Full"
-                text: (charging ? "󰂄" : bar.batPct > 90 ? "󰁹" : bar.batPct > 70 ? "󰂂" : bar.batPct > 50 ? "󰂀" : bar.batPct > 30 ? "󰁾" : bar.batPct > 15 ? "󰁻" : "󰂎") + " " + bar.batPct + "%"
-                color: charging ? bar.cGreen : bar.batPct <= 15 ? bar.cRed : bar.batPct <= 30 ? bar.cYellow : bar.cText
+                property bool charging: bar.batCharging || bar.batHeld
+                text: bar.batIcon() + " " + bar.batLevel + "%"
+                color: charging ? Theme.green : bar.batLevel <= 19 ? Theme.red : bar.batLevel <= 38 ? Theme.yellow : Theme.text
                 font { family: "JetBrainsMono Nerd Font"; pixelSize: 13 }
                 visible: bar.batPct >= 0
             }
@@ -500,11 +802,12 @@ PanelWindow {
         id: centerIsland
         anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: 6 }
         height: 32
-        width: centerRow.implicitWidth + 22
+        width: bar.hubOpen ? 520 : centerRow.implicitWidth + 22
         radius: 10
         clip: true
-        color: bar.cIslandBg
-        border { color: bar.hubOpen ? Qt.rgba(203/255, 166/255, 247/255, 0.35) : bar.cIslandBorder; width: 1 }
+        color: bar.hubOpen ? Qt.alpha(Theme.panel, 0.985) : Theme.islandBg
+        Behavior on color { ColorAnimation { duration: 160 } }
+        border { color: bar.hubOpen ? Qt.alpha(Theme.mauve, 0.35) : Theme.islandBorder; width: 1 }
 
         Behavior on height { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
         Behavior on width  { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
@@ -514,19 +817,24 @@ PanelWindow {
             function onHubOpenChanged() {
                 if (!bar.hubOpen) {
                     centerIsland.height = 32
-                    centerIsland.width  = centerRow.implicitWidth + 22
                     bar.hubView = "main"
-                    searchInput.text = ""
+                    hubContent.searchInput.text = ""
                 } else {
                     centerIsland.height = bar.currentHubHeight
-                    centerIsland.width  = 520
-                    searchInput.forceActiveFocus()
+                    hubContent.searchInput.forceActiveFocus()
+                    if (bar.hubView === "notifs") bar.store?.markRead()
+                    if (bar.hubView === "spotify") spView.activate()
+                    bar.activateApplet(bar.hubView)
+                    if (!appLoadProc.running) appLoadProc.running = true
                 }
             }
             function onCurrentHubHeightChanged() {
                 if (bar.hubOpen) centerIsland.height = bar.currentHubHeight
             }
             function onHubViewChanged() {
+                if (bar.hubOpen && bar.hubView === "notifs") { bar.nowTick++; bar.store?.markRead() }
+                if (bar.hubOpen && bar.hubView === "spotify") spView.activate()
+                if (bar.hubOpen) bar.activateApplet(bar.hubView)
                 if (bar.hubOpen && bar.hubView === "wifi" && !wifiScanProc.running)
                     wifiScanProc.running = true
             }
@@ -543,16 +851,39 @@ PanelWindow {
                 spacing: 10
 
                 Text {
+                    visible: bar.timerText.length > 0
+                    text: bar.timerText
+                    color: Theme.mauve
+                    font { family: "JetBrainsMono Nerd Font"; pixelSize: 13 }
+                }
+                Rectangle { visible: bar.timerText.length > 0; width: 1; height: 20; color: Theme.sep }
+
+                Text {
+                    visible: bar.studyFocus.barText.length > 0
+                    text: bar.studyFocus.barText
+                    color: bar.studyFocus.phase === "focus" ? Theme.green : Theme.sky
+                    font { family: "JetBrainsMono Nerd Font"; pixelSize: 13 }
+                }
+                Rectangle { visible: bar.studyFocus.barText.length > 0; width: 1; height: 20; color: Theme.sep }
+                Text {
+                    visible: bar.school.chipText.length > 0
+                    text: "󰃭 " + bar.school.chipText
+                    color: Theme.yellow
+                    font { family: "JetBrainsMono Nerd Font"; pixelSize: 12 }
+                }
+                Rectangle { visible: bar.school.chipText.length > 0; width: 1; height: 20; color: Theme.sep }
+
+                Text {
                     text: bar.weatherStr
-                    color: bar.cPeach
+                    color: Theme.peach
                     font { family: "JetBrainsMono Nerd Font"; pixelSize: 14 }
                 }
 
-                Rectangle { width: 1; height: 20; color: bar.cSep }
+                Rectangle { width: 1; height: 20; color: Theme.sep }
 
                 Text {
                     id: clockLabel
-                    color: bar.cPink
+                    color: Theme.pink
                     font { family: "JetBrainsMono Nerd Font"; pixelSize: 13; weight: Font.Medium }
                     Timer {
                         interval: 1000; repeat: true; running: true; triggeredOnStart: true
@@ -571,7 +902,7 @@ PanelWindow {
 
                 Text {
                     text: bar.hubOpen ? "󰅃" : "󰅀"
-                    color: bar.cDim
+                    color: Theme.dim
                     font { family: "JetBrainsMono Nerd Font"; pixelSize: 10 }
                 }
             }
@@ -587,481 +918,146 @@ PanelWindow {
         Rectangle {
             anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 38 }
             height: 1
-            color: bar.cSep
+            color: Theme.sep
             opacity: bar.hubOpen ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: 160 } }
         }
 
+        // ── Hub tabs: Home | Games (only on those two pages) ─
+        Rectangle {
+            id: hubTabs
+            visible: bar.hubOpen && (bar.hubView === "main" || bar.hubView === "games" || bar.hubView === "school")
+            anchors { top: parent.top; topMargin: 46; left: parent.left; right: parent.right; leftMargin: 14; rightMargin: 14 }
+            height: 34; radius: 12
+            color: Qt.alpha(Theme.mauve, 0.06)
+            border { color: Theme.cardBorder; width: 1 }
+            RowLayout {
+                anchors { fill: parent; margins: 3 }
+                spacing: 3
+                Repeater {
+                    model: [ { id: "main", label: "Home", icon: "󰋜", color: Theme.mauve }, { id: "school", label: "School", icon: "󰑴", color: Theme.blue } ]
+                        .concat(bar.studyFocus.modeOn ? [] : [ { id: "games", label: "Games", icon: "󰊖", color: Theme.green } ])
+                    delegate: Rectangle {
+                        id: ht
+                        required property var modelData
+                        readonly property bool sel: bar.hubView === modelData.id
+                        Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.fillHeight: true; radius: 9
+                        color: sel ? Qt.rgba(Qt.color(modelData.color).r, Qt.color(modelData.color).g, Qt.color(modelData.color).b, 0.20)
+                                   : (hta.containsMouse ? Qt.alpha(Theme.mauve, 0.08) : "transparent")
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                        RowLayout {
+                            anchors.centerIn: parent; spacing: 8
+                            Text { text: ht.modelData.icon; color: ht.sel ? ht.modelData.color : Theme.dim; font { family: "JetBrainsMono Nerd Font"; pixelSize: 15 } }
+                            Text { text: ht.modelData.label; color: ht.sel ? Theme.text : Theme.dim; font { family: "JetBrainsMono Nerd Font"; pixelSize: 12; bold: ht.sel } }
+                        }
+                        MouseArea { id: hta; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: { bar.hubView = ht.modelData.id; if (ht.modelData.id === "school") schoolView.activate() } }
+                    }
+                }
+            }
+        }
+
         // ── Main view ─────────────────────────────────────
-        ColumnLayout {
+        HomePage {
+            bar: bar
             id: hubContent
             visible: bar.hubView === "main"
-            anchors { top: parent.top; topMargin: 46; left: parent.left; right: parent.right }
+            anchors { top: parent.top; topMargin: 88; left: parent.left; right: parent.right }
             anchors { leftMargin: 14; rightMargin: 14 }
-            spacing: 0
-
-            // ── Search bar ────────────────────────────────
-            Rectangle {
-                Layout.fillWidth: true; Layout.preferredHeight: 36; Layout.bottomMargin: 8
-                radius: 8
-                color: Qt.rgba(203/255, 166/255, 247/255, 0.07)
-                border { color: searchInput.activeFocus ? Qt.rgba(203/255, 166/255, 247/255, 0.40) : bar.cSep; width: 1 }
-
-                RowLayout {
-                    anchors { fill: parent; leftMargin: 10; rightMargin: 10 }
-                    spacing: 8
-
-                    Text {
-                        text: ""
-                        color: searchInput.activeFocus ? bar.cMauve : bar.cDim
-                        font { family: "JetBrainsMono Nerd Font"; pixelSize: 13 }
-                    }
-
-                    TextInput {
-                        id: searchInput
-                        Layout.fillWidth: true
-                        color: bar.cText
-                        font { family: "JetBrainsMono Nerd Font"; pixelSize: 13 }
-                        onTextChanged: bar.searchQuery = text
-                        Keys.onEscapePressed: {
-                            if (text.length > 0) { text = "" }
-                            else { bar.hubOpen = false }
-                        }
-                        Keys.onReturnPressed: {
-                            if (bar.searchResults.length > 0) {
-                                appLaunchProc.launch(bar.searchResults[0].exec)
-                                text = ""; bar.hubOpen = false
-                            }
-                        }
-                    }
-
-                    Text {
-                        visible: searchInput.text.length > 0
-                        text: "✕"; color: bar.cDim
-                        font { family: "JetBrainsMono Nerd Font"; pixelSize: 11 }
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: searchInput.text = "" }
-                    }
-
-                    Text {
-                        visible: searchInput.text.length === 0
-                        text: "search apps…"; color: bar.cDim
-                        font { family: "JetBrainsMono Nerd Font"; pixelSize: 12 }
-                    }
-                }
-            }
-
-            // ── Search results (when typing) ──────────────
-            Repeater {
-                model: bar.searchResults
-                delegate: Rectangle {
-                    required property var modelData
-                    required property int index
-                    Layout.fillWidth: true; implicitHeight: 38; radius: 6
-                    color: index === 0 ? Qt.rgba(203/255, 166/255, 247/255, 0.10) : "transparent"
-
-                    RowLayout {
-                        anchors { fill: parent; leftMargin: 10; rightMargin: 10 }
-                        spacing: 10
-                        Text {
-                            text: ""
-                            color: index === 0 ? bar.cMauve : bar.cDim
-                            font { family: "JetBrainsMono Nerd Font"; pixelSize: 13 }
-                        }
-                        Text {
-                            text: modelData.name; color: index === 0 ? bar.cText : bar.cDim
-                            font { family: "JetBrainsMono Nerd Font"; pixelSize: 12 }
-                            elide: Text.ElideRight; Layout.fillWidth: true
-                        }
-                        Text {
-                            visible: index === 0
-                            text: "↵"; color: bar.cDim
-                            font { family: "JetBrainsMono Nerd Font"; pixelSize: 11 }
-                        }
-                    }
-                    MouseArea {
-                        anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                        onClicked: { appLaunchProc.launch(modelData.exec); searchInput.text = ""; bar.hubOpen = false }
-                    }
-                }
-            }
-
-            // ── Normal content (hidden while searching) ───
-            HubSlider {
-                visible: bar.searchQuery.length < 2
-                Layout.fillWidth: true; Layout.preferredHeight: 34
-                icon: bar.volMuted ? "󰝟" : bar.volPct > 66 ? "󰕾" : bar.volPct > 33 ? "󰖀" : "󰕿"
-                value: bar.volPct / 100; displayText: bar.volPct + "%"; accentColor: bar.cTeal
-                onSlid: pct => { bar.volPct = Math.round(pct * 100); if (!volSetProc.running) volSetProc.setTo(Math.round(pct * 100)) }
-            }
-
-            HubSlider {
-                visible: bar.searchQuery.length < 2
-                Layout.fillWidth: true; Layout.preferredHeight: 34
-                icon: "󰃠"; value: bar.brightPct / 100; displayText: bar.brightPct + "%"; accentColor: bar.cYellow
-                onSlid: pct => { bar.brightPct = Math.round(pct * 100); if (!brightSetProc.running) brightSetProc.setTo(Math.round(pct * 100)) }
-            }
-
-            // ── Media controls ────────────────────────────
-            Rectangle {
-                visible: bar.searchQuery.length < 2 && bar.mediaStatus !== "Stopped" && bar.mediaTitle.length > 0
-                Layout.fillWidth: true
-                Layout.preferredHeight: 36
-                Layout.topMargin: 6
-                radius: 8
-                color: Qt.rgba(203/255, 166/255, 247/255, 0.06)
-                border { color: bar.cSep; width: 1 }
-
-                RowLayout {
-                    anchors { fill: parent; leftMargin: 10; rightMargin: 10 }
-                    spacing: 6
-
-                    Text {
-                        text: "󰒮"
-                        color: bar.cDim
-                        font { family: "JetBrainsMono Nerd Font"; pixelSize: 14 }
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { if (!mediaPrevProc.running) mediaPrevProc.running = true } }
-                    }
-                    Text {
-                        text: bar.mediaStatus === "Playing" ? "󰏤" : "󰐊"
-                        color: bar.cMauve
-                        font { family: "JetBrainsMono Nerd Font"; pixelSize: 16 }
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { if (!mediaPlayProc.running) mediaPlayProc.running = true } }
-                    }
-                    Text {
-                        text: "󰒭"
-                        color: bar.cDim
-                        font { family: "JetBrainsMono Nerd Font"; pixelSize: 14 }
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { if (!mediaNextProc.running) mediaNextProc.running = true } }
-                    }
-
-                    Rectangle { width: 1; height: 20; color: bar.cSep }
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 1
-                        Text {
-                            text: bar.mediaTitle
-                            color: bar.cText
-                            font { family: "JetBrainsMono Nerd Font"; pixelSize: 11; bold: true }
-                            elide: Text.ElideRight; Layout.fillWidth: true
-                        }
-                        Text {
-                            visible: bar.mediaArtist.length > 0
-                            text: bar.mediaArtist
-                            color: bar.cDim
-                            font { family: "JetBrainsMono Nerd Font"; pixelSize: 10 }
-                            elide: Text.ElideRight; Layout.fillWidth: true
-                        }
-                    }
-                }
-            }
-
-            Rectangle {
-                visible: bar.searchQuery.length < 2
-                Layout.fillWidth: true; Layout.topMargin: 10; Layout.bottomMargin: 10; implicitHeight: 1; color: bar.cSep
-            }
-
-            RowLayout {
-                visible: bar.searchQuery.length < 2
-                Layout.fillWidth: true; Layout.preferredHeight: 48; spacing: 0
-                HubStat { Layout.fillWidth: true; label: "CPU";  value: bar.cpuUsage + "%";   accent: bar.cpuUsage  > 80 ? bar.cRed : bar.cTeal }
-                HubStat { Layout.fillWidth: true; label: "RAM";  value: bar.memPercent + "%"; accent: bar.memPercent > 80 ? bar.cRed : bar.cTeal }
-                HubStat { Layout.fillWidth: true; label: "Temp"; value: bar.cpuTemp + "°C";   accent: bar.cpuTemp > 80 ? bar.cRed : bar.cpuTemp > 70 ? bar.cYellow : bar.cPeach }
-                HubStat { Layout.fillWidth: true; label: "Bat";  value: bar.batPct + "%";     accent: (bar.batStatus === "Charging" || bar.batStatus === "Full") ? bar.cGreen : bar.batPct <= 20 ? bar.cRed : bar.cText }
-            }
-
-            Rectangle {
-                visible: bar.searchQuery.length < 2
-                Layout.fillWidth: true; Layout.topMargin: 10; Layout.bottomMargin: 10; implicitHeight: 1; color: bar.cSep
-            }
-
-            RowLayout {
-                visible: bar.searchQuery.length < 2
-                Layout.fillWidth: true; Layout.preferredHeight: 36; spacing: 8
-                Text { text: bar.weatherStr; color: bar.cPeach; font { family: "JetBrainsMono Nerd Font"; pixelSize: 16 } }
-                Item { Layout.fillWidth: true }
-                HubToggle {
-                    label: "WiFi"; icon: bar.wifiOn ? "󰖩" : "󰖪"; active: bar.wifiOn
-                    onToggled: { bar.hubView = "wifi" }
-                }
-                HubToggle {
-                    property var adapter: Bluetooth.defaultAdapter
-                    label: "BT"; icon: (adapter?.powered ?? false) ? "󰂯" : "󰂲"
-                    active: bar.btDevices.some(d => d.connected)
-                    onToggled: { bar.hubView = "bt" }
-                }
-                HubToggle { label: "DND"; icon: bar.dndOn ? "󰂛" : "󰂚"; active: bar.dndOn; onToggled: bar.dndOn = !bar.dndOn }
-            }
         }
 
         // ── WiFi view ─────────────────────────────────────
-        Item {
+        WifiView {
+            bar: bar
             visible: bar.hubView === "wifi"
             anchors { top: parent.top; topMargin: 46; left: parent.left; right: parent.right; bottom: parent.bottom }
+        }
 
-            ColumnLayout {
-                anchors { top: parent.top; left: parent.left; right: parent.right }
-                anchors { leftMargin: 12; rightMargin: 12 }
-                spacing: 0
+        // ── Power view ────────────────────────────────────
+        PowerView {
+            bar: bar
+            id: powerView
+            visible: bar.hubView === "power"
+            anchors { top: parent.top; topMargin: 46; left: parent.left; right: parent.right; bottom: parent.bottom }
+        }
 
-                // nav row
-                RowLayout {
-                    Layout.fillWidth: true; Layout.preferredHeight: 40; spacing: 8
-                    Text {
-                        text: "󰁍"
-                        color: bar.cDim; font { family: "JetBrainsMono Nerd Font"; pixelSize: 16 }
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: bar.hubView = "main" }
-                    }
-                    Text { text: "WiFi"; color: bar.cSky; font { family: "JetBrainsMono Nerd Font"; pixelSize: 14; bold: true } }
-                    Item { Layout.fillWidth: true }
-                    Text {
-                        text: wifiScanProc.running ? "scanning…" : "rescan"
-                        color: bar.cDim; font { family: "JetBrainsMono Nerd Font"; pixelSize: 11 }
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { if (!wifiScanProc.running) wifiScanProc.running = true } }
-                    }
-                }
+        // ── Applets ───────────────────────────────────────
+        Calendar {
+            id: calView
+            bar: bar
+            visible: bar.hubView === "calendar"
+            anchors { top: parent.top; topMargin: 46; left: parent.left; right: parent.right; bottom: parent.bottom }
+        }
+        Wallpapers {
+            id: wallView
+            bar: bar
+            visible: bar.hubView === "wallpapers"
+            anchors { top: parent.top; topMargin: 46; left: parent.left; right: parent.right; bottom: parent.bottom }
+        }
+        Clipboard {
+            id: clipView
+            bar: bar
+            visible: bar.hubView === "clipboard"
+            anchors { top: parent.top; topMargin: 46; left: parent.left; right: parent.right; bottom: parent.bottom }
+        }
+        Mixer {
+            id: mixView
+            bar: bar
+            visible: bar.hubView === "mixer"
+            anchors { top: parent.top; topMargin: 46; left: parent.left; right: parent.right; bottom: parent.bottom }
+        }
+        Shots {
+            id: shotView
+            bar: bar
+            visible: bar.hubView === "shots"
+            anchors { top: parent.top; topMargin: 46; left: parent.left; right: parent.right; bottom: parent.bottom }
+        }
+        Games {
+            id: gamesView
+            bar: bar
+            visible: bar.hubView === "games"
+            anchors { top: parent.top; topMargin: 84; left: parent.left; right: parent.right; bottom: parent.bottom }
+        }
 
-                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: bar.cSep; Layout.bottomMargin: 2 }
+        Windows {
+            id: winView
+            bar: bar
+            visible: bar.hubView === "windows"
+            anchors { top: parent.top; topMargin: 46; left: parent.left; right: parent.right; bottom: parent.bottom }
+        }
+        School {
+            id: schoolView
+            bar: bar
+            visible: bar.hubView === "school"
+            anchors { top: parent.top; topMargin: 84; left: parent.left; right: parent.right; bottom: parent.bottom }
+        }
+        ThemeView {
+            bar: bar
+            visible: bar.hubView === "theme"
+            anchors { top: parent.top; topMargin: 46; left: parent.left; right: parent.right; bottom: parent.bottom }
+        }
 
-                Repeater {
-                    model: bar.wifiNetworks
-                    delegate: Rectangle {
-                        required property var modelData
-                        Layout.fillWidth: true; implicitHeight: 40; radius: 6
-                        color: modelData.active ? Qt.rgba(137/255, 220/255, 235/255, 0.12) : "transparent"
+        // ── Spotify view ──────────────────────────────────
+        Spotify {
+            id: spView
+            bar: bar
+            visible: bar.hubView === "spotify"
+            anchors { top: parent.top; topMargin: 46; left: parent.left; right: parent.right; bottom: parent.bottom }
+        }
 
-                        RowLayout {
-                            anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
-                            spacing: 8
-                            Text {
-                                text: modelData.signal > 75 ? "󰤨" : modelData.signal > 50 ? "󰤥" : modelData.signal > 25 ? "󰤢" : "󰤟"
-                                color: modelData.active ? bar.cSky : bar.cDim
-                                font { family: "JetBrainsMono Nerd Font"; pixelSize: 14 }
-                            }
-                            Text {
-                                text: modelData.ssid; color: modelData.active ? bar.cText : bar.cDim
-                                font { family: "JetBrainsMono Nerd Font"; pixelSize: 12 }
-                                elide: Text.ElideRight; Layout.fillWidth: true
-                            }
-                            Text {
-                                text: modelData.security || "Open"; color: bar.cDim
-                                font { family: "JetBrainsMono Nerd Font"; pixelSize: 10 }
-                            }
-                            Text {
-                                visible: modelData.active; text: "●"; color: bar.cGreen
-                                font { family: "JetBrainsMono Nerd Font"; pixelSize: 8 }
-                            }
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                if (modelData.active) wifiConnectProc.disconnectWifi()
-                                else wifiConnectProc.connectTo(modelData.ssid)
-                            }
-                        }
-                    }
-                }
-
-                Text {
-                    visible: bar.wifiNetworks.length === 0 && !wifiScanProc.running
-                    Layout.fillWidth: true; Layout.topMargin: 16
-                    text: "No networks found"; color: bar.cDim
-                    font { family: "JetBrainsMono Nerd Font"; pixelSize: 12 }
-                    horizontalAlignment: Text.AlignHCenter
-                }
-            }
+        // ── Notification history view ─────────────────────
+        NotifView {
+            bar: bar
+            visible: bar.hubView === "notifs"
+            anchors { top: parent.top; topMargin: 46; left: parent.left; right: parent.right; bottom: parent.bottom }
         }
 
         // ── Bluetooth view ────────────────────────────────
-        Item {
+        BluetoothView {
+            bar: bar
             visible: bar.hubView === "bt"
             anchors { top: parent.top; topMargin: 46; left: parent.left; right: parent.right; bottom: parent.bottom }
-
-            ColumnLayout {
-                anchors { top: parent.top; left: parent.left; right: parent.right }
-                anchors { leftMargin: 12; rightMargin: 12 }
-                spacing: 0
-
-                // nav row
-                RowLayout {
-                    Layout.fillWidth: true; Layout.preferredHeight: 40; spacing: 8
-                    Text {
-                        text: "󰁍"
-                        color: bar.cDim; font { family: "JetBrainsMono Nerd Font"; pixelSize: 16 }
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: bar.hubView = "main" }
-                    }
-                    Text { text: "Bluetooth"; color: bar.cSky; font { family: "JetBrainsMono Nerd Font"; pixelSize: 14; bold: true } }
-                    Item { Layout.fillWidth: true }
-                    Text {
-                        property bool scanning: Bluetooth.defaultAdapter?.discovering ?? false
-                        text: scanning ? "scanning…" : "scan"
-                        color: bar.cDim; font { family: "JetBrainsMono Nerd Font"; pixelSize: 11 }
-                        MouseArea {
-                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                            onClicked: { if (Bluetooth.defaultAdapter) Bluetooth.defaultAdapter.discovering = !Bluetooth.defaultAdapter.discovering }
-                        }
-                    }
-                }
-
-                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: bar.cSep; Layout.bottomMargin: 2 }
-
-                Repeater {
-                    model: bar.btDevices
-                    delegate: Rectangle {
-                        required property var modelData
-                        Layout.fillWidth: true; implicitHeight: 40; radius: 6
-                        color: modelData.connected ? Qt.rgba(148/255, 226/255, 213/255, 0.12) : "transparent"
-
-                        RowLayout {
-                            anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
-                            spacing: 8
-                            Text {
-                                text: modelData.connected ? "󰂯" : "󰂲"
-                                color: modelData.connected ? bar.cTeal : bar.cDim
-                                font { family: "JetBrainsMono Nerd Font"; pixelSize: 14 }
-                            }
-                            Text {
-                                text: modelData.name || modelData.address
-                                color: modelData.connected ? bar.cText : bar.cDim
-                                font { family: "JetBrainsMono Nerd Font"; pixelSize: 12 }
-                                elide: Text.ElideRight; Layout.fillWidth: true
-                            }
-                            Text {
-                                text: modelData.connected ? "connected" : (modelData.paired ? "paired" : "trusted")
-                                color: modelData.connected ? bar.cGreen : bar.cDim
-                                font { family: "JetBrainsMono Nerd Font"; pixelSize: 10 }
-                            }
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                if (modelData.connected) btActionProc.disconnectDevice(modelData.address)
-                                else btActionProc.connectDevice(modelData.address)
-                            }
-                        }
-                    }
-                }
-
-                Text {
-                    visible: bar.btDevices.length === 0
-                    Layout.fillWidth: true; Layout.topMargin: 16
-                    text: "No paired devices"; color: bar.cDim
-                    font { family: "JetBrainsMono Nerd Font"; pixelSize: 12 }
-                    horizontalAlignment: Text.AlignHCenter
-                }
-            }
         }
     }
 
-    // ── Inline components ─────────────────────────────────
 
-    component HubSlider: RowLayout {
-        id: sl
-        property string icon: "󰕿"
-        property real   value: 0
-        property string displayText: ""
-        property color  accentColor: "#94e2d5"
-        signal slid(real pct)
-
-        implicitHeight: 34
-        spacing: 10
-
-        Text {
-            text: sl.icon
-            color: sl.accentColor
-            font { family: "JetBrainsMono Nerd Font"; pixelSize: 15 }
-            Layout.preferredWidth: 18
-        }
-
-        Item {
-            Layout.fillWidth: true
-            height: 20
-
-            Rectangle {
-                id: slTrack
-                anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter }
-                height: 4; radius: 2
-                color: Qt.rgba(203/255, 166/255, 247/255, 0.10)
-
-                Rectangle {
-                    width: Math.max(slHandle.width / 2, slTrack.width * sl.value)
-                    height: parent.height; radius: parent.radius
-                    color: sl.accentColor; opacity: 0.75
-                }
-            }
-
-            Rectangle {
-                id: slHandle
-                x: (slTrack.width - width) * sl.value
-                anchors.verticalCenter: slTrack.verticalCenter
-                width: 14; height: 14; radius: 7
-                color: sl.accentColor
-            }
-
-            MouseArea {
-                anchors.fill: parent
-                function emit(mx) { sl.slid(Math.max(0, Math.min(1, mx / slTrack.width))) }
-                onPressed:         mouse => emit(mouse.x)
-                onPositionChanged: mouse => { if (pressed) emit(mouse.x) }
-            }
-        }
-
-        Text {
-            text: sl.displayText
-            color: bar.cDim
-            font { family: "JetBrainsMono Nerd Font"; pixelSize: 11 }
-            Layout.preferredWidth: 32
-            horizontalAlignment: Text.AlignRight
-        }
-    }
-
-    component HubStat: Item {
-        property string label:  ""
-        property string value:  ""
-        property color  accent: "#b4befe"
-
-        implicitHeight: 48
-
-        ColumnLayout {
-            anchors.centerIn: parent
-            spacing: 2
-
-            Text {
-                Layout.alignment: Qt.AlignHCenter
-                text: parent.parent.value
-                color: parent.parent.accent
-                font { family: "JetBrainsMono Nerd Font"; pixelSize: 15; bold: true }
-            }
-            Text {
-                Layout.alignment: Qt.AlignHCenter
-                text: parent.parent.label
-                color: bar.cDim
-                font { family: "JetBrainsMono Nerd Font"; pixelSize: 10 }
-            }
-        }
-    }
-
-    component HubToggle: Rectangle {
-        id: tog
-        property string label:  ""
-        property string icon:   ""
-        property bool   active: false
-        signal toggled
-
-        width: 64; height: 32; implicitHeight: 32; radius: 8
-        color: active ? Qt.rgba(203/255, 166/255, 247/255, 0.20) : Qt.rgba(49/255, 50/255, 68/255, 0.80)
-        border { color: active ? Qt.rgba(203/255, 166/255, 247/255, 0.40) : Qt.rgba(203/255, 166/255, 247/255, 0.10); width: 1 }
-
-        RowLayout {
-            anchors.centerIn: parent
-            spacing: 5
-
-            Text { text: tog.icon; color: tog.active ? bar.cMauve : bar.cDim; font { family: "JetBrainsMono Nerd Font"; pixelSize: 13 } }
-            Text { text: tog.label; color: tog.active ? bar.cText : bar.cDim; font { family: "JetBrainsMono Nerd Font"; pixelSize: 10 } }
-        }
-
-        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: tog.toggled() }
-    }
 }

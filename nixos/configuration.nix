@@ -181,7 +181,7 @@ programs.nix-ld = {
   xwayland-satellite
   claude-code
   (btop.override { rocmSupport = true; })
-  javaPackages.compiler.semeru-bin.jre-17
+  jdk21
   cloudflared
   
   # Random vibe coded dependecies that i dont know what theyre for
