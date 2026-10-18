@@ -184,6 +184,9 @@ spacing: 8 }
             }
         }
 
+        // ── study time: month / semester / all time ──
+        SchoolHistory { fs: root.fs; sc: root.sc }
+
         // ── focus mode ──
         Card {
             id: modeCard

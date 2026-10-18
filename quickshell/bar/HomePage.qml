@@ -271,7 +271,7 @@ ColumnLayout {
 
     // ── Quick settings: night light, keep awake, power profile, power off on lid close ──
     Job { id: quickJob; script: Quickshell.shellPath("quick.sh") }
-    property var  qs: ({ profile: "", profiles: [], night: false, nightOk: false, awake: false, lid: false })
+    property var  qs: ({ profile: "", profiles: [], night: false, nightOk: false, awake: false, lid: false, vpn: false, vpnConn: "" })
     property string qsNote: ""
     function qsRefresh() { quickJob.go(["status"], r => { if (r && r.night !== undefined) home.qs = r }) }
     function qsDo(args) {
@@ -315,6 +315,12 @@ ColumnLayout {
                 icon: "󰅶"; label: "Awake"; sub: "no sleep"
                 on: home.qs.awake; accent: Theme.green
                 onClicked: home.qsDo(["awake", home.qs.awake ? "off" : "on"])
+            }
+            QuickPill {
+                Layout.fillWidth: true; Layout.preferredWidth: 1
+                icon: "󰖂"; label: "VPN"; sub: home.qs.vpn ? "Proton on" : "Proton"
+                on: home.qs.vpn; accent: Theme.blue
+                onClicked: home.qsDo(["vpn", home.qs.vpn ? "off" : "on"])
             }
             QuickPill {
                 Layout.fillWidth: true; Layout.preferredWidth: 1

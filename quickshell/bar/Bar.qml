@@ -50,13 +50,14 @@ PanelWindow {
         { id: "clipboard",  label: "Clipboard",  icon: "󰅌", accent: Theme.yellow },
         { id: "mixer",      label: "Audio",      icon: "󰋋", accent: Theme.teal },
         { id: "shots",      label: "Capture",    icon: "󰄀", accent: Theme.peach },
+        { id: "airdrop",    label: "AirDrop",    icon: "󰒊", accent: Theme.sky },
         { id: "windows",    label: "Windows",    icon: "󰖯", accent: Theme.sky },
         { id: "theme",      label: "Theme",      icon: "󰏘", accent: Theme.mauve }
     ]
-    readonly property var appletHeights: ({ calendar: 590, wallpapers: 520, clipboard: 540, mixer: 540, shots: 540, games: 650, school: 700, theme: 560, windows: 560 })
+    readonly property var appletHeights: ({ calendar: 590, wallpapers: 520, clipboard: 540, mixer: 540, shots: 540, airdrop: 520, games: 650, school: 700, theme: 560, windows: 560 })
     function activateApplet(v) {
         var a = ({ calendar: calView, wallpapers: wallView, clipboard: clipView, mixer: mixView,
-                   shots: shotView, games: gamesView, school: schoolView, windows: winView })[v]
+                   shots: shotView, airdrop: airdropView, games: gamesView, school: schoolView, windows: winView })[v]
         if (a && a.activate) a.activate()
     }
 
@@ -120,7 +121,7 @@ PanelWindow {
             if (view === "school") { bar.hubView = "school"; bar.hubOpen = true; schoolView.activate(); if (schoolView[action]) schoolView[action](); return }
             bar.hubView = launcher ? "games" : view; bar.hubOpen = true
             if (launcher) gamesView.setTab(view)
-            var m = ({ calendar: calView, wallpapers: wallView, clipboard: clipView, mixer: mixView, shots: shotView, games: gamesView, minecraft: gamesView.mc, steam: gamesView.steam, lutris: gamesView.lutris, ksp: gamesView.ksp })[view]
+            var m = ({ calendar: calView, wallpapers: wallView, clipboard: clipView, mixer: mixView, shots: shotView, airdrop: airdropView, games: gamesView, minecraft: gamesView.mc, steam: gamesView.steam, lutris: gamesView.lutris, ksp: gamesView.ksp })[view]
             if (m && m[action]) m[action]()
         }
         function spotify(tab: string, query: string): void {
@@ -1009,6 +1010,12 @@ PanelWindow {
             id: shotView
             bar: bar
             visible: bar.hubView === "shots"
+            anchors { top: parent.top; topMargin: 46; left: parent.left; right: parent.right; bottom: parent.bottom }
+        }
+        AirDrop {
+            id: airdropView
+            bar: bar
+            visible: bar.hubView === "airdrop"
             anchors { top: parent.top; topMargin: 46; left: parent.left; right: parent.right; bottom: parent.bottom }
         }
         Games {

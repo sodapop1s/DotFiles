@@ -94,8 +94,8 @@ Item {
             tl[task] = (tl[task] || 0) + min
             school.setPref("taskLog", tl)
         }
-        // keep about three months
-        var keys = Object.keys(log).sort(); while (keys.length > 100) delete log[keys.shift()]
+        // keep the whole history (a day is a few bytes) so the Study time chart can show the semester and all time
+        var keys = Object.keys(log).sort(); while (keys.length > 2000) delete log[keys.shift()]
         school.setPref("focusLog", log)
     }
     // older logs stored one number per day; newer ones { course: minutes }
