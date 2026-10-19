@@ -8,11 +8,11 @@
 #   lectures.sh open <path>         -> open a file from one of the folders
 # Notability can back itself up (Settings -> Auto-Backup) to a cloud folder as PDF; when that folder is synced to this
 # computer, add it here. Folders are remembered in ~/.config/qs-bar/lectures.json.
-set -u
+set -u -f   # -f: $EXT below is expanded unquoted on purpose, so *.pdf must never be globbed against the current folder
 CONF="$HOME/.config/qs-bar/lectures.json"
 fail() { jq -cn --arg e "$1" '{error:$e}'; exit 1; }
 roots() { [ -f "$CONF" ] && jq -r '.roots[]?' "$CONF" 2>/dev/null; }
-EXT='-iname *.pdf -o -iname *.m4a -o -iname *.mp3 -o -iname *.wav -o -iname *.txt -o -iname *.md -o -iname *.rtf -o -iname *.png -o -iname *.jpg -o -iname *.jpeg'
+EXT='-iname *.pdf -o -iname *.m4a -o -iname *.mp3 -o -iname *.wav -o -iname *.txt -o -iname *.md -o -iname *.rtf -o -iname *.png -o -iname *.jpg -o -iname *.jpeg -o -iname *.note'
 under_home() { local p; p=$(realpath -m -- "$1" 2>/dev/null) || return 1; case $p in "$HOME"/*) return 0 ;; esac; return 1; }
 
 case ${1:-} in
@@ -48,10 +48,28 @@ case ${1:-} in
 
   open)
     f=${2:-}; [ -f "$f" ] || fail "that file is gone"
-    case ${f,,} in *.pdf|*.m4a|*.mp3|*.wav|*.txt|*.md|*.rtf|*.png|*.jpg|*.jpeg) ;; *) fail "that kind of file is not opened from here" ;; esac
+    case ${f,,} in *.pdf|*.note|*.m4a|*.mp3|*.wav|*.txt|*.md|*.rtf|*.png|*.jpg|*.jpeg) ;; *) fail "that kind of file is not opened from here" ;; esac
     ok=0; while IFS= read -r r; do case $(realpath -- "$f") in "$(realpath -- "$r")"/*) ok=1 ;; esac; done < <(roots)
     [ $ok = 1 ] || fail "that file is not in one of your lecture folders"
-    niri msg action spawn -- xdg-open "$f" >/dev/null 2>&1 < /dev/null
+    case ${f,,} in
+      *.note)
+        # a Notability note is an archive of private data; the handwriting cannot be drawn outside Notability, but the
+        # preview picture and any audio recordings inside it can be opened
+        d="$HOME/.cache/qs-bar-notes/$(printf %s "$f" | md5sum | cut -c1-12)"
+        mkdir -p "$d"
+        python3 - "$f" "$d" <<'PY' || fail "could not read that note"
+import sys, zipfile, os
+z = zipfile.ZipFile(sys.argv[1]); out = sys.argv[2]
+for i in z.infolist():
+    base = os.path.basename(i.filename)
+    if base.lower() in ("thumb12x.png", "thumb.png") or base.lower().endswith((".m4a", ".mp3")):
+        open(os.path.join(out, base), "wb").write(z.read(i))
+PY
+        pick=$(ls "$d"/thumb12x.png "$d"/thumb.png 2>/dev/null | head -n 1)
+        [ -n "$pick" ] || fail "nothing in that note can be previewed - set Notability's Auto-Backup format to PDF"
+        niri msg action spawn -- xdg-open "$pick" >/dev/null 2>&1 < /dev/null ;;
+      *) niri msg action spawn -- xdg-open "$f" >/dev/null 2>&1 < /dev/null ;;
+    esac
     jq -cn '{ok:true}' ;;
 
   *) fail "usage: lectures.sh detect|roots|addroot <path>|droproot <path>|list|open <path>" ;;

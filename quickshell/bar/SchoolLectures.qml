@@ -23,9 +23,40 @@ Item {
     Job { id: listJob;  script: Quickshell.shellPath("lectures.sh") }
     Job { id: detJob;   script: Quickshell.shellPath("lectures.sh") }
     Job { id: actJob;   script: Quickshell.shellPath("lectures.sh") }
+    Job { id: syncJob;  script: Quickshell.shellPath("notability-sync.sh") }
+    Job { id: syncInfoJob; script: Quickshell.shellPath("notability-sync.sh") }
     function say(msg, err) { status = msg; statusErr = !!err; statusTimer.restart() }
     Timer { id: statusTimer; interval: 4000; onTriggered: root.status = "" }
+    // ── Google Drive sync of the Notability Auto-Backup folder (notability-sync.sh) ──
+    property var  syncInfo: ({ configured: false, last: 0, files: 0 })
+    readonly property bool syncing: syncJob.running
+    function refreshSync(thenSync) {
+        syncInfoJob.go(["status"], r => {
+            if (!r || r.error) return
+            syncInfo = r
+            if (thenSync && r.configured && !syncing && Date.now() / 1000 - r.last > 900) sync()
+        })
+    }
+    function sync() {
+        if (syncing) return
+        say("syncing from Google Drive…", false)
+        syncJob.go(["sync"], r => {
+            if (r && r.error) say(r.error, true)
+            else say(r && r.copied ? r.copied + " new file" + (r.copied === 1 ? "" : "s") : "up to date", false)
+            refreshSync(false); activate()
+        })
+    }
+    function signIn() {
+        say("approve access in the browser window…", false)
+        syncJob.go(["setup"], r => {
+            if (r && r.error) say(r.error, true); else { say("signed in", false); sync() }
+            refreshSync(false)
+        })
+    }
+    Timer { interval: 1200000; repeat: true; running: root.visible; onTriggered: root.refreshSync(true) }
+
     function activate() {
+        refreshSync(true)
         rootsJob.go(["roots"], r => {
             if (!Array.isArray(r)) return
             roots = r; loaded = true
@@ -47,7 +78,7 @@ Item {
     readonly property var courseList: { var seen = {}, out = []; tagged.forEach(f => { if (f.course && !seen[f.course]) { seen[f.course] = 1; out.push(f.course) } }); return out }
     readonly property var shown: courseFilter === "" ? tagged : tagged.filter(f => f.course === courseFilter)
     readonly property int newThisWeek: tagged.filter(f => f.mtime * 1000 > Date.now() - 7 * 86400000).length
-    function icon(ext) { return ext === "pdf" ? "󰈦" : (ext === "m4a" || ext === "mp3" || ext === "wav") ? "󰎆" : (ext === "png" || ext === "jpg" || ext === "jpeg") ? "󰋩" : "󰈙" }
+    function icon(ext) { return ext === "pdf" ? "󰈦" : (ext === "m4a" || ext === "mp3" || ext === "wav") ? "󰎆" : (ext === "png" || ext === "jpg" || ext === "jpeg") ? "󰋩" : ext === "note" ? "󰠮" : "󰈙" }
 
     // ── first time: choose a folder ──
     Flickable {
@@ -140,12 +171,18 @@ spacing: 10
             }
             Text { visible: list.count === 0; anchors.centerIn: parent; text: "no lecture files yet"; color: Theme.dim; font { family: root.font; pixelSize: 11 } }
         }
+        Text { visible: root.status.length > 0; text: root.status; color: root.statusErr ? Theme.red : Theme.green; font { family: root.font; pixelSize: 9 } }
         RowLayout {
             Layout.fillWidth: true; spacing: 10
             Text { text: root.newThisWeek + " new this week"; color: Theme.subtext; font { family: root.font; pixelSize: 9 } }
             Text { Layout.fillWidth: true; text: root.roots.map(r => r.replace(/^\/home\/[^\/]+/, "~")).join("  ·  "); color: Theme.dim; elide: Text.ElideMiddle; font { family: root.font; pixelSize: 9 } }
             Text { text: "forget folder"; color: Theme.dim; font { family: root.font; pixelSize: 9 }
                    MouseArea { anchors.fill: parent; anchors.margins: -4; cursorShape: Qt.PointingHandCursor; onClicked: root.drop(root.roots[0]) } }
+            Text {
+                text: root.syncing ? "󰓦 syncing…" : root.syncInfo.configured ? "󰓦 sync" + (root.syncInfo.last ? " · " + U.rel(root.syncInfo.last * 1000, root.sc.nowMs).replace("in ", "") : "") : "󰊭 sign in to Drive"
+                color: root.syncInfo.configured ? Theme.green : Theme.yellow; font { family: root.font; pixelSize: 9; bold: true }
+                MouseArea { anchors.fill: parent; anchors.margins: -4; cursorShape: Qt.PointingHandCursor; onClicked: { if (root.syncInfo.configured) root.sync(); else root.signIn() } }
+            }
             Text { text: "refresh"; color: root.accent; font { family: root.font; pixelSize: 9 }
                    MouseArea { anchors.fill: parent; anchors.margins: -4; cursorShape: Qt.PointingHandCursor; onClicked: root.activate() } }
         }
