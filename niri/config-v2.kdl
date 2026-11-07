@@ -102,10 +102,9 @@ layout {
 spawn-at-startup "qs" "-c" "/home/soda/.config/quickshell/orbit"
 // Spotify playback daemon (the bar's Spotify view controls it)
 spawn-at-startup "spotify_player" "-d"
-spawn-at-startup "swww-daemon"
+// orbit draws its own wallpaper (Wallpaper.qml), so no swww-daemon here
 spawn-at-startup "xwayland-satellite" ":0"
 // restores the wallpaper last picked in the hub's Wallpaper applet (defaults to the previous one)
-spawn-sh-at-startup "sleep 1 && bash /home/soda/.config/quickshell/orbit/wallpaper.sh restore"
 environment {
     DISPLAY ":0"
 }

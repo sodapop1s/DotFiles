@@ -50,7 +50,7 @@ def switch(name, dry):
         backup = LIVE.with_name("config.kdl.pre-rice-switch")
         steps.append(f"keep your current file as {backup}")
     steps += [f"point {LIVE} at {cfg}", "stop running quickshell",
-              f"start quickshell -c {name}, restore wallpaper"]
+              f"start quickshell -c {name}" + (" and swww with your wallpaper" if name == "bar" else ", stop swww")]
     if dry:
         print("\n".join(f"would: {s}" for s in steps)); return
     if LIVE.exists() and not LIVE.is_symlink():
@@ -63,9 +63,16 @@ def switch(name, dry):
         run("qs", "kill", "-c", other, check=False)
     run("pkill", "-f", QS_PROC, check=False)
     time.sleep(0.5)
+    if name == "bar":  # bar sets its wallpaper through swww; orbit draws its own
+        if run("pgrep", "-x", "swww-daemon", check=False).returncode:
+            run("niri", "msg", "action", "spawn", "--", "swww-daemon")
+            time.sleep(1)
+    else:
+        run("pkill", "-x", "swww-daemon", check=False)
     run("niri", "msg", "action", "spawn", "--", "qs", "-c", name)  # via niri, like the autostart
-    time.sleep(1)
-    run("niri", "msg", "action", "spawn-sh", "--", f"bash {shell_dir}/wallpaper.sh restore", check=False)
+    if name == "bar":
+        time.sleep(1)
+        run("niri", "msg", "action", "spawn-sh", "--", f"bash {shell_dir}/wallpaper.sh restore", check=False)
     print(f"now on {name}")
 
 
