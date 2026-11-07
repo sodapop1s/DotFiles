@@ -16,6 +16,7 @@ Singleton {
     property string batStatus: "Unknown"
     readonly property int batLevel: Math.min(100, Math.round(batPct * 100 / batCap))
     readonly property bool charging: batStatus === "Charging"
+    readonly property bool onBattery: batStatus === "Discharging"
     FileView { id: capFile;  path: "/sys/class/power_supply/BAT1/capacity"; onLoaded: root.batPct = parseInt(text()) || 0 }
     FileView { id: statFile; path: "/sys/class/power_supply/BAT1/status";   onLoaded: root.batStatus = text().trim() }
     Timer { interval: 30000; running: true; repeat: true; onTriggered: { capFile.reload(); statFile.reload() } }

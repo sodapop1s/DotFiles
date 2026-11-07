@@ -15,6 +15,7 @@ ShellRoot {
         function off(): void { shell.dndOn = false }
     }
 
+    Wallpaper {}
     Pill {}
     Panels {}
     Notifications { id: notifs; dnd: shell.dndOn }
