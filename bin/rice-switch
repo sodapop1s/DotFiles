@@ -17,6 +17,9 @@ REPO = Path(__file__).resolve().parent.parent
 LIVE = Path.home() / ".config/niri/config.kdl"
 SETUPS = {"bar": REPO / "niri/config.kdl", "orbit": REPO / "niri/config-v2.kdl"}
 QS_DIR = Path.home() / ".config/quickshell"
+# Anchored on the command's start: Nix wraps the binary (process name .quickshell-wrapped), and an
+# unanchored -f would also match any shell or editor whose command line merely mentions quickshell.
+QS_PROC = r"^\S*/quickshell( |$)"
 
 
 def run(*cmd, check=True):
@@ -31,8 +34,8 @@ def active():
 
 
 def running_shells():
-    out = run("pgrep", "-af", "quickshell", check=False).stdout
-    return [n for n in SETUPS if f"quickshell/{n}" in out or f"-c {n}" in out]
+    out = run("pgrep", "-af", QS_PROC, check=False).stdout
+    return [n for n in SETUPS if f"quickshell/{n}" in out or f" -c {n}" in out]
 
 
 def switch(name, dry):
@@ -58,7 +61,7 @@ def switch(name, dry):
     tmp.replace(LIVE)  # atomic: niri never sees a missing file
     for other in SETUPS:
         run("qs", "kill", "-c", other, check=False)
-    run("pkill", "-f", "quickshell", check=False)
+    run("pkill", "-f", QS_PROC, check=False)
     time.sleep(0.5)
     run("niri", "msg", "action", "spawn", "--", "qs", "-c", name)  # via niri, like the autostart
     time.sleep(1)
