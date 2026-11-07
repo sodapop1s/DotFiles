@@ -54,7 +54,7 @@
   users.users.soda = {
     isNormalUser  = true;
     description   = "Soda";
-    extraGroups   = [ "networkmanager" "wheel" "libvirtd" "kvm" ];
+    extraGroups   = [ "networkmanager" "wheel" "libvirtd" "kvm" "dialout" ];
     packages      = with pkgs; [];
   };
 
@@ -149,9 +149,20 @@
 
   environment.sessionVariables.CLAUDE_DISABLE_SANDBOX = "1";
 
+  # iPhone support (libimobiledevice needs usbmuxd to talk to the phone)
+  services.usbmuxd.enable = true;
+
   environment.systemPackages = with pkgs; [
     # Virtualisation tools
     virt-viewer
+
+    # iPhone tools (idevice_id, idevicerestore, ...)
+    libimobiledevice
+    ifuse
+    (callPackage ./pkgs/idevicerestore-git.nix { })
+
+    # Microcontroller dev
+    (callPackage ./pkgs/arduino-ide.nix { })
 
     # Core tools
     neovim
