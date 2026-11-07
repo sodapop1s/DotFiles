@@ -232,4 +232,6 @@ let
 in
 {
   environment.systemPackages = [ (pkgs.linkFarm "rice-theme" files) ];
+  # pathsToLink is an allow-list; without this the files never reach /run/current-system/sw
+  environment.pathsToLink = [ "/share/rice-theme" ];
 }
