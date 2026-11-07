@@ -481,3 +481,7 @@ binds {
 switch-events {
     lid-close { spawn "bash" "/home/soda/.config/quickshell/orbit/lid-close.sh"; }
 }
+
+// Colors and animation springs come from the theme module (nixos/modules/theme/tokens.nix).
+// Needs a rebuild first; rice-switch refuses to switch while this file is missing.
+include "/run/current-system/sw/share/rice-theme/niri.kdl"
