@@ -1,0 +1,6 @@
+# Colours come from the generated theme (nixos/modules/theme): ~/.config/yazi/theme.toml links to it.
+[mgr]
+sort_by        = "natural"
+sort_dir_first = true
+linemode       = "size"
+show_hidden    = false

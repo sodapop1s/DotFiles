@@ -207,6 +207,7 @@ binds {
 
     // Suggested binds or running programs: terminal, app launcher, screen locker.
     Mod+Q hotkey-overlay-title="Open a Terminal: Ghostty" { spawn "ghostty"; }
+    Mod+Shift+Y hotkey-overlay-title="Files: Yazi" { spawn "ghostty" "-e" "yazi"; }
 
     // Hub (Quickshell bar IPC)
     Mod+Space   hotkey-overlay-title="Launcher"        { spawn "qs" "-c" "orbit" "ipc" "call" "panel" "toggle" "launcher"; }
