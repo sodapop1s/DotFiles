@@ -9,7 +9,7 @@ PanelWindow {
     id: notifWin
 
     anchors { top: true; right: true }
-    margins { top: 50; right: 10 }
+    margins { top: 14; right: 14 }
     implicitWidth: 380
     implicitHeight: Math.max(1, stack.implicitHeight + 8)
     color: "transparent"
