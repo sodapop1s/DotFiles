@@ -274,6 +274,53 @@ let
       ignore-empty-password
     '')
 
+    # btop: ~/.config/btop/themes/rice.theme links here; set color_theme = "rice" in btop.conf.
+    # Load gradients run muted, amber, red (colour as state); everything else is neutral.
+    (file "btop/rice.theme" ''
+      theme[main_bg]="${c.bg}"
+      theme[main_fg]="${c.text}"
+      theme[title]="${c.text}"
+      theme[hi_fg]="${c.accent}"
+      theme[selected_bg]="${c.raised}"
+      theme[selected_fg]="${c.text}"
+      theme[inactive_fg]="${c.muted}"
+      theme[graph_text]="${c.muted}"
+      theme[meter_bg]="${c.hairline}"
+      theme[proc_misc]="${c.muted}"
+      theme[cpu_box]="${c.hairline}"
+      theme[mem_box]="${c.hairline}"
+      theme[net_box]="${c.hairline}"
+      theme[proc_box]="${c.hairline}"
+      theme[div_line]="${c.hairline}"
+      theme[temp_start]="${c.muted}"
+      theme[temp_mid]="${c.warn}"
+      theme[temp_end]="${c.crit}"
+      theme[cpu_start]="${c.muted}"
+      theme[cpu_mid]="${c.warn}"
+      theme[cpu_end]="${c.crit}"
+      theme[free_start]="${c.hairline}"
+      theme[free_mid]="${c.muted}"
+      theme[free_end]="${c.text}"
+      theme[cached_start]="${c.hairline}"
+      theme[cached_mid]="${c.muted}"
+      theme[cached_end]="${c.text}"
+      theme[available_start]="${c.hairline}"
+      theme[available_mid]="${c.muted}"
+      theme[available_end]="${c.text}"
+      theme[used_start]="${c.muted}"
+      theme[used_mid]="${c.warn}"
+      theme[used_end]="${c.crit}"
+      theme[download_start]="${c.muted}"
+      theme[download_mid]="${c.text}"
+      theme[download_end]="${c.text}"
+      theme[upload_start]="${c.hairline}"
+      theme[upload_mid]="${c.muted}"
+      theme[upload_end]="${c.text}"
+      theme[process_start]="${c.muted}"
+      theme[process_mid]="${c.warn}"
+      theme[process_end]="${c.crit}"
+    '')
+
     (file "obsidian/rice.css" ''
       body.theme-dark {
         --background-primary: ${c.bg};
