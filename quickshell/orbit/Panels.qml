@@ -4,13 +4,13 @@ import Quickshell.Wayland
 import Quickshell.Io
 
 // The two on-demand panels and the dimming behind them. One is open at a time.
-//   qs -c orbit ipc call panel toggle left|right|launcher|clipboard|study      (also: open <name>, close)
+//   qs -c orbit ipc call panel toggle left|right|launcher|clipboard|study|keys      (also: open <name>, close)
 Item {
     id: root
     required property var store      // the Notifications window (history)
     required property var host       // the shell root (owns dndOn, school, studyFocus)
     required property var school     // classes and deadlines (SchoolData)
-    property string active: ""        // "", "left", "right", "launcher", "clipboard" or "study"
+    property string active: ""        // "", "left", "right", "launcher", "clipboard", "study" or "keys"
     readonly property bool sideOpen: active === "left" || active === "right"
 
     // the calendar helper only reads its cache; sync it on start and every 30 minutes, then reload the classes
@@ -66,6 +66,13 @@ Item {
         cardWidth: 720
         onCloseRequested: root.active = ""
         ClipboardPicker { active: root.active === "clipboard"; onDone: root.active = "" }
+    }
+    Overlay {
+        open: root.active === "keys"
+        cardWidth: 1120
+        maxCardHeight: 760
+        onCloseRequested: root.active = ""
+        Hotkeys { active: root.active === "keys" }
     }
     Overlay {
         open: root.active === "study"

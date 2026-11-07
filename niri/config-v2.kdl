@@ -112,8 +112,8 @@ environment {
 // spawn-sh-at-startup "qs -c ~/source/qs/MyAwesomeShell"
 
 hotkey-overlay {
-    // Uncomment this line to disable the "Important Hotkeys" pop-up at startup.
-    // skip-at-startup
+    // niri's own pop-up is replaced by orbit's shortcuts menu (Mod+Shift+/)
+    skip-at-startup
 }
 
 // Uncomment this line to ask the clients to omit their client-side decorations if possible.
@@ -203,7 +203,7 @@ window-rule {
 }
 
 binds {
-   Mod+Shift+Slash { show-hotkey-overlay; }
+   Mod+Shift+Slash hotkey-overlay-title=null { spawn "qs" "-c" "orbit" "ipc" "call" "panel" "toggle" "keys"; }   // orbit draws its own shortcuts menu
 
     // Suggested binds or running programs: terminal, app launcher, screen locker.
     Mod+Q hotkey-overlay-title="Open a Terminal: Ghostty" { spawn "ghostty"; }
