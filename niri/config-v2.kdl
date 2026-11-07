@@ -207,7 +207,7 @@ binds {
    Mod+Shift+Slash { show-hotkey-overlay; }
 
     // Suggested binds or running programs: terminal, app launcher, screen locker.
-    Mod+Q hotkey-overlay-title="Open a Terminal: Kitty" { spawn "kitty"; }
+    Mod+Q hotkey-overlay-title="Open a Terminal: Ghostty" { spawn "ghostty"; }
 
     // Hub (Quickshell bar IPC)
     Mod+Space   hotkey-overlay-title="Hub / Launcher"      { spawn "qs" "-c" "orbit" "ipc" "call" "hub" "toggle"; }
@@ -222,7 +222,7 @@ binds {
     Mod+Shift+N hotkey-overlay-title="Dismiss All Notifications" { spawn "qs" "-c" "orbit" "ipc" "call" "notif" "dismissAll"; }
 
     // Utilities
-    Mod+M       hotkey-overlay-title="System Monitor"       { spawn "kitty" "-e" "btop"; }
+    Mod+M       hotkey-overlay-title="System Monitor"       { spawn "ghostty" "-e" "btop"; }
     Mod+P       hotkey-overlay-title="Power Menu"           { spawn "wlogout"; }
 
     // Lock

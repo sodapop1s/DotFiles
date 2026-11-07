@@ -201,6 +201,7 @@
 
     # Core tools
     neovim
+    ghostty          # terminal for the orbit setup; kitty stays for bar
     python3          # used by the quickshell bar (calendar feed, spotify login)
     fastfetch
     git
