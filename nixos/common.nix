@@ -147,6 +147,41 @@
     ];
   };
 
+  # Polkit agent — niri doesn't ship one, so GUI apps can't ask for the password without it
+  systemd.user.services.polkit-gnome-authentication-agent-1 = {
+    description = "polkit-gnome-authentication-agent-1";
+    wantedBy    = [ "graphical-session.target" ];
+    wants       = [ "graphical-session.target" ];
+    after       = [ "graphical-session.target" ];
+    serviceConfig = {
+      Type           = "simple";
+      ExecStart      = "${pkgs.polkit_gnome}/libexec/polkit-gnome-authentication-agent-1";
+      Restart        = "on-failure";
+      RestartSec     = 1;
+      TimeoutStopSec = 10;
+    };
+  };
+
+  # Default apps by file type
+  xdg.mime.defaultApplications = {
+    "application/pdf"  = "org.gnome.Papers.desktop";
+    "text/plain"       = "org.gnome.TextEditor.desktop";
+    "video/mp4"        = "vlc.desktop";
+    "video/x-matroska" = "vlc.desktop";
+    "video/webm"       = "vlc.desktop";
+    "video/quicktime"  = "vlc.desktop";
+    "video/x-msvideo"  = "vlc.desktop";
+    "audio/mpeg"       = "vlc.desktop";
+    "audio/flac"       = "vlc.desktop";
+    "audio/ogg"        = "vlc.desktop";
+    "audio/x-wav"      = "vlc.desktop";
+    "image/png"        = "com.interversehq.qView.desktop";
+    "image/jpeg"       = "com.interversehq.qView.desktop";
+    "image/gif"        = "com.interversehq.qView.desktop";
+    "image/webp"       = "com.interversehq.qView.desktop";
+    "inode/directory"  = "thunar.desktop";
+  };
+
   environment.sessionVariables.CLAUDE_DISABLE_SANDBOX = "1";
 
   # iPhone support (libimobiledevice needs usbmuxd to talk to the phone)
@@ -222,6 +257,16 @@
 
     # Misc / office
     libreoffice
+
+    # Default desktop apps
+    vlc
+    mpv
+    papers               # PDF viewer
+    gnome-text-editor
+    pavucontrol          # audio mixer
+    networkmanagerapplet # nm-connection-editor
+    gnome-disk-utility
+    baobab               # disk usage analyzer
 
     # Thumbnail / file manager dependencies
     ffmpegthumbnailer
