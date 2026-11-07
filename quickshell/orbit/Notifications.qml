@@ -19,17 +19,6 @@ PanelWindow {
     // only the cards take input; the rest of the window is click-through
     mask: Region { item: stack }
 
-    // ── Colours come from Theme.qml ──
-    readonly property color cCardBg:   Qt.alpha(Theme.base, 0.96)
-    readonly property color cBorder:   Qt.alpha(Theme.mauve, 0.18)
-    readonly property color cText:     Theme.bright
-    readonly property color cSubtext:  Theme.subtext
-    readonly property color cDim:      Theme.dim
-    readonly property color cMauve:    Theme.mauve
-    readonly property color cRed:      Theme.red
-    readonly property color cSurface:  Qt.alpha(Theme.surface, 0.9)
-    readonly property string fontFamily: "JetBrainsMono Nerd Font"
-
     property var notifs: []
     // Do Not Disturb: set from the bar; critical notifications still get through
     property bool dnd: false
@@ -115,6 +104,12 @@ PanelWindow {
             if (notifWin.notifs.length > 0) notifWin.removeNotif(notifWin.notifs[notifWin.notifs.length - 1])
         }
         function clearHistory(): void { notifWin.clearHistory() }
+        // qs -c orbit ipc call notif forget <app>   drops that sender's entries from the history
+        function forget(app: string): void {
+            notifWin.history = notifWin.history.filter(h => h.appName !== app)
+            notifWin.unread = Math.min(notifWin.unread, notifWin.history.length)
+            notifWin.saveHistory()
+        }
         function dismissAll(): void {
             notifWin.notifs.slice().forEach(n => notifWin.removeNotif(n))
         }
@@ -137,7 +132,8 @@ PanelWindow {
                 readonly property var  n: notifWin.notifs.find(x => x && x.id === modelData) ?? null
                 readonly property bool critical: n?.urgency === NotificationUrgency.Critical
                 readonly property bool low:      n?.urgency === NotificationUrgency.Low
-                readonly property color accent:  critical ? notifWin.cRed : (low ? notifWin.cDim : notifWin.cMauve)
+                // colour is for state only: red when critical, muted when low, neutral otherwise
+                readonly property color tone: critical ? Theme.crit : (low ? Theme.muted : Theme.text)
 
                 // 0 → never auto-dismiss
                 readonly property int totalMs: critical ? 0 : (n && n.expireTimeout > 0 ? n.expireTimeout : (low ? 4000 : 6000))
@@ -146,20 +142,16 @@ PanelWindow {
 
                 Layout.fillWidth: true
                 implicitHeight: body.implicitHeight + 28
-                radius: 14
-                color: notifWin.cCardBg
-                border { color: critical ? Qt.alpha(Theme.red, 0.45) : notifWin.cBorder; width: 1 }
+                radius: Theme.radius
+                color: Theme.panel
+                border { width: 1; color: critical ? Theme.crit : Theme.hairline }
                 clip: true
 
-                // slide + fade in
-                opacity: 0
-                transform: Translate { id: slide; x: 40 }
-                Component.onCompleted: enter.start()
-                ParallelAnimation {
-                    id: enter
-                    NumberAnimation { target: card;  property: "opacity"; to: 1; duration: 220; easing.type: Easing.OutCubic }
-                    NumberAnimation { target: slide; property: "x";       to: 0; duration: 280; easing.type: Easing.OutCubic }
-                }
+                // slides in on the shared spring
+                Spring { id: enter; target: 0 }
+                Component.onCompleted: enter.target = 1
+                opacity: Math.max(0, Math.min(1, enter.value * 1.6))
+                transform: Translate { x: (1 - enter.value) * 48 }
 
                 // auto-dismiss countdown; pauses while hovered
                 Timer {
@@ -176,7 +168,6 @@ PanelWindow {
                     id: hoverArea
                     anchors.fill: parent
                     hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
                     onClicked: notifWin.removeNotif(card.n)
                 }
 
@@ -189,12 +180,12 @@ PanelWindow {
                         Layout.fillWidth: true
                         spacing: 12
 
-                        // icon / image
+                        // the app's icon or image; a letter when it has none
                         Rectangle {
                             Layout.alignment: Qt.AlignTop
                             width: 40; height: 40; radius: 10
-                            color: notifWin.cSurface
-                            border { color: notifWin.cBorder; width: 1 }
+                            color: Theme.raised
+                            border { width: 1; color: Theme.hairline }
 
                             Image {
                                 id: img
@@ -217,9 +208,9 @@ PanelWindow {
                             Text {
                                 anchors.centerIn: parent
                                 visible: img.status !== Image.Ready
-                                text: card.critical ? "󰀦" : "󰂚"
-                                color: card.accent
-                                font { family: notifWin.fontFamily; pixelSize: 18 }
+                                text: ((card.n?.appName?.length ?? 0) > 0 ? card.n.appName : "N").charAt(0).toUpperCase()
+                                color: card.tone
+                                font { family: Theme.fontUi; pixelSize: 18; weight: Font.DemiBold }
                             }
                         }
 
@@ -232,21 +223,19 @@ PanelWindow {
                                 spacing: 6
                                 Text {
                                     text: (card.n?.appName?.length ?? 0) > 0 ? card.n.appName : "Notification"
-                                    color: card.accent
-                                    font { family: notifWin.fontFamily; pixelSize: 10; bold: true; capitalization: Font.AllUppercase; letterSpacing: 0.8 }
+                                    color: card.critical ? Theme.crit : Theme.muted
+                                    font { family: Theme.fontUi; pixelSize: 11; capitalization: Font.AllUppercase; letterSpacing: 1 }
                                     Layout.fillWidth: true; elide: Text.ElideRight
                                     textFormat: Text.PlainText
                                 }
                                 Text {
-                                    id: closeBtn
-                                    text: "✕"
-                                    color: closeArea.containsMouse ? notifWin.cText : notifWin.cDim
-                                    font { family: notifWin.fontFamily; pixelSize: 11 }
+                                    text: "×"
+                                    color: closeArea.containsMouse ? Theme.text : Theme.muted
+                                    font { family: Theme.fontUi; pixelSize: 16 }
                                     MouseArea {
                                         id: closeArea
                                         anchors.fill: parent; anchors.margins: -6
                                         hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
                                         onClicked: notifWin.removeNotif(card.n)
                                     }
                                 }
@@ -255,8 +244,8 @@ PanelWindow {
                             Text {
                                 visible: (card.n?.summary?.length ?? 0) > 0
                                 text: card.n?.summary ?? ""
-                                color: notifWin.cText
-                                font { family: notifWin.fontFamily; pixelSize: 14; bold: true }
+                                color: Theme.text
+                                font { family: Theme.fontUi; pixelSize: Theme.sizeUi + 1; weight: Font.DemiBold }
                                 Layout.fillWidth: true
                                 wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight
                                 textFormat: Text.PlainText
@@ -264,8 +253,8 @@ PanelWindow {
                             Text {
                                 visible: (card.n?.body?.length ?? 0) > 0
                                 text: card.n?.body ?? ""
-                                color: notifWin.cSubtext
-                                font { family: notifWin.fontFamily; pixelSize: 12 }
+                                color: Theme.muted
+                                font { family: Theme.fontUi; pixelSize: 12 }
                                 Layout.fillWidth: true
                                 wrapMode: Text.Wrap; maximumLineCount: 4; elide: Text.ElideRight
                                 textFormat: Text.StyledText
@@ -280,27 +269,11 @@ PanelWindow {
                         spacing: 6
                         Repeater {
                             model: card.n?.actions ?? []
-                            delegate: Rectangle {
-                                id: actBtn
+                            delegate: Chip {
                                 required property var modelData
-                                height: 26; radius: 8
-                                width: actText.implicitWidth + 24
-                                color: actArea.containsMouse ? Qt.alpha(Theme.mauve, 0.25) : notifWin.cSurface
-                                border { color: notifWin.cBorder; width: 1 }
-                                Text {
-                                    id: actText
-                                    anchors.centerIn: parent
-                                    text: actBtn.modelData.text
-                                    color: notifWin.cText
-                                    font { family: notifWin.fontFamily; pixelSize: 11 }
-                                }
-                                MouseArea {
-                                    id: actArea
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: { actBtn.modelData.invoke(); notifWin.removeNotif(card.n) }
-                                }
+                                implicitHeight: 28
+                                text: modelData.text
+                                onClicked: { modelData.invoke(); notifWin.removeNotif(card.n) }
                             }
                         }
                     }
@@ -312,8 +285,8 @@ PanelWindow {
                     anchors { left: parent.left; bottom: parent.bottom }
                     height: 2
                     width: parent.width * Math.max(0, card.leftMs / card.totalMs)
-                    color: card.accent
-                    opacity: card.hovered ? 0.25 : 0.6
+                    color: Theme.muted
+                    opacity: card.hovered ? 0.3 : 0.7
                 }
             }
         }
