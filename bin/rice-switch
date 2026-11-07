@@ -20,6 +20,7 @@ QS_DIR = Path.home() / ".config/quickshell"
 # Anchored on the command's start: Nix wraps the binary (process name .quickshell-wrapped), and an
 # unanchored -f would also match any shell or editor whose command line merely mentions quickshell.
 QS_PROC = r"^\S*/quickshell( |$)"
+SWWW_PROC = r"^\S*/swww-daemon( |$)"  # same reason: the process is named .swww-daemon-wrapped
 
 
 def run(*cmd, check=True):
@@ -64,11 +65,11 @@ def switch(name, dry):
     run("pkill", "-f", QS_PROC, check=False)
     time.sleep(0.5)
     if name == "bar":  # bar sets its wallpaper through swww; orbit draws its own
-        if run("pgrep", "-x", "swww-daemon", check=False).returncode:
+        if run("pgrep", "-f", SWWW_PROC, check=False).returncode:
             run("niri", "msg", "action", "spawn", "--", "swww-daemon")
             time.sleep(1)
     else:
-        run("pkill", "-x", "swww-daemon", check=False)
+        run("pkill", "-f", SWWW_PROC, check=False)
     run("niri", "msg", "action", "spawn", "--", "qs", "-c", name)  # via niri, like the autostart
     if name == "bar":
         time.sleep(1)
