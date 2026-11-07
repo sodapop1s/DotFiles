@@ -113,34 +113,53 @@ let
       @define-color tooltip_fg_color ${c.text};
     '')
 
-    # Neovim: add to runtimepath, then `colorscheme rice`
+    # Neovim: lazy.nvim loads this directory as a plugin (see plugins/rice.lua), then `colorscheme rice`.
+    # Syntax stays inside the palette: weight and italics carry the structure, colour is for state.
     (file "nvim/colors/rice.lua" ''
       vim.cmd("highlight clear")
+      if vim.fn.exists("syntax_on") == 1 then vim.cmd("syntax reset") end
       vim.g.colors_name = "rice"
       vim.o.termguicolors = true
       vim.o.background = "dark"
-      local hl = function(g, o) vim.api.nvim_set_hl(0, g, o) end
-      hl("Normal",       { fg = "${c.text}",  bg = "${c.bg}" })
-      hl("NormalFloat",  { fg = "${c.text}",  bg = "${c.panel}" })
-      hl("FloatBorder",  { fg = "${c.hairline}", bg = "${c.panel}" })
-      hl("CursorLine",   { bg = "${c.panel}" })
-      hl("Visual",       { bg = "${c.raised}" })
-      hl("LineNr",       { fg = "${c.muted}" })
-      hl("CursorLineNr", { fg = "${c.text}" })
-      hl("Comment",      { fg = "${c.muted}", italic = true })
-      hl("Pmenu",        { fg = "${c.text}",  bg = "${c.panel}" })
-      hl("PmenuSel",     { fg = "${c.text}",  bg = "${c.raised}" })
-      hl("Search",       { fg = "${c.bg}",    bg = "${c.accent}" })
-      hl("IncSearch",    { fg = "${c.bg}",    bg = "${c.accent}" })
-      hl("StatusLine",   { fg = "${c.text}",  bg = "${c.panel}" })
-      hl("WinSeparator", { fg = "${c.hairline}" })
-      hl("DiagnosticError", { fg = "${c.crit}" })
-      hl("DiagnosticWarn",  { fg = "${c.warn}" })
-      hl("DiagnosticOk",    { fg = "${c.good}" })
-      hl("DiagnosticInfo",  { fg = "${c.accent}" })
-      hl("DiffAdd",      { fg = "${c.good}" })
-      hl("DiffDelete",   { fg = "${c.crit}" })
-      hl("DiffChange",   { fg = "${c.warn}" })
+      local p = { bg = "${c.bg}", panel = "${c.panel}", raised = "${c.raised}", line = "${c.hairline}",
+                  text = "${c.text}", muted = "${c.muted}", accent = "${c.accent}",
+                  good = "${c.good}", warn = "${c.warn}", crit = "${c.crit}" }
+      local groups = {
+        Normal = { fg = p.text, bg = p.bg }, NormalNC = { fg = p.text, bg = p.bg },
+        NormalFloat = { fg = p.text, bg = p.panel }, FloatBorder = { fg = p.line, bg = p.panel }, FloatTitle = { fg = p.text, bg = p.panel, bold = true },
+        Cursor = { fg = p.bg, bg = p.text }, CursorLine = { bg = p.panel }, CursorColumn = { bg = p.panel },
+        CursorLineNr = { fg = p.text, bold = true }, LineNr = { fg = p.muted }, SignColumn = { bg = p.bg },
+        ColorColumn = { bg = p.panel }, FoldColumn = { fg = p.muted }, Folded = { fg = p.muted, bg = p.panel },
+        Visual = { bg = p.raised }, VisualNOS = { bg = p.raised },
+        Search = { fg = p.bg, bg = p.accent }, IncSearch = { fg = p.bg, bg = p.accent }, CurSearch = { fg = p.bg, bg = p.accent },
+        MatchParen = { fg = p.text, bg = p.raised, bold = true },
+        Pmenu = { fg = p.text, bg = p.panel }, PmenuSel = { fg = p.text, bg = p.raised }, PmenuSbar = { bg = p.panel }, PmenuThumb = { bg = p.line },
+        StatusLine = { fg = p.text, bg = p.panel }, StatusLineNC = { fg = p.muted, bg = p.panel },
+        TabLine = { fg = p.muted, bg = p.panel }, TabLineSel = { fg = p.text, bg = p.bg, bold = true }, TabLineFill = { bg = p.panel },
+        WinSeparator = { fg = p.line }, VertSplit = { fg = p.line }, WinBar = { fg = p.text, bg = p.bg }, WinBarNC = { fg = p.muted, bg = p.bg },
+        NonText = { fg = p.line }, EndOfBuffer = { fg = p.bg }, Whitespace = { fg = p.line }, SpecialKey = { fg = p.line },
+        Conceal = { fg = p.muted }, Directory = { fg = p.text, bold = true }, Title = { fg = p.text, bold = true },
+        ErrorMsg = { fg = p.crit }, WarningMsg = { fg = p.warn }, MoreMsg = { fg = p.good }, ModeMsg = { fg = p.text }, Question = { fg = p.text },
+        -- syntax
+        Comment = { fg = p.muted, italic = true }, SpecialComment = { fg = p.muted, italic = true },
+        Constant = { fg = p.text }, String = { fg = p.text }, Character = { fg = p.text },
+        Number = { fg = p.text }, Boolean = { fg = p.text, bold = true }, Float = { fg = p.text },
+        Identifier = { fg = p.text }, Function = { fg = p.text, bold = true },
+        Statement = { fg = p.text, bold = true }, Conditional = { fg = p.text, bold = true }, Repeat = { fg = p.text, bold = true },
+        Label = { fg = p.text }, Operator = { fg = p.muted }, Keyword = { fg = p.text, bold = true }, Exception = { fg = p.text, bold = true },
+        PreProc = { fg = p.muted }, Include = { fg = p.muted }, Define = { fg = p.muted }, Macro = { fg = p.muted }, PreCondit = { fg = p.muted },
+        Type = { fg = p.text, italic = true }, StorageClass = { fg = p.text, bold = true }, Structure = { fg = p.text, italic = true }, Typedef = { fg = p.text, italic = true },
+        Special = { fg = p.muted }, SpecialChar = { fg = p.muted }, Tag = { fg = p.text }, Delimiter = { fg = p.muted }, Debug = { fg = p.warn },
+        Underlined = { fg = p.text, underline = true }, Error = { fg = p.crit }, Todo = { fg = p.bg, bg = p.warn, bold = true },
+        -- state colours
+        DiagnosticError = { fg = p.crit }, DiagnosticWarn = { fg = p.warn }, DiagnosticInfo = { fg = p.muted }, DiagnosticHint = { fg = p.muted }, DiagnosticOk = { fg = p.good },
+        DiagnosticUnderlineError = { sp = p.crit, undercurl = true }, DiagnosticUnderlineWarn = { sp = p.warn, undercurl = true },
+        DiagnosticUnderlineInfo = { sp = p.muted, undercurl = true }, DiagnosticUnderlineHint = { sp = p.muted, undercurl = true },
+        DiffAdd = { fg = p.good }, DiffDelete = { fg = p.crit }, DiffChange = { fg = p.warn }, DiffText = { fg = p.text, bg = p.raised },
+        Added = { fg = p.good }, Removed = { fg = p.crit }, Changed = { fg = p.warn },
+        SpellBad = { sp = p.crit, undercurl = true }, SpellCap = { sp = p.warn, undercurl = true }, SpellRare = { sp = p.muted, undercurl = true }, SpellLocal = { sp = p.muted, undercurl = true },
+      }
+      for name, spec in pairs(groups) do vim.api.nvim_set_hl(0, name, spec) end
     '')
 
     (file "yazi/theme.toml" ''
@@ -174,19 +193,28 @@ let
       ]
     '')
 
+    # swayimg: `include = <this file>` from ~/.config/swayimg/config. Colours are #RRGGBBAA.
     (file "swayimg/theme.conf" ''
-      [font]
-      name = ${t.font.ui}, ${t.font.uiFallback}
-
       [viewer]
-      window = ${c.bg}
-      background = ${c.bg}
+      window = ${c.bg}ff
+      transparency = ${c.bg}ff
+
+      [slideshow]
+      window = ${c.bg}ff
+      transparency = ${c.bg}ff
 
       [gallery]
-      window = ${c.bg}
-      background = ${c.panel}
-      border = ${c.accent}
-      select = ${c.raised}
+      window = ${c.bg}ff
+      background = ${c.panel}ff
+      select = ${c.raised}ff
+      border = ${c.accent}ff
+      shadow = ${c.bg}ff
+
+      [font]
+      name = ${t.font.ui}
+      color = ${c.text}ff
+      shadow = ${c.bg}00
+      background = ${c.bg}00
     '')
 
     (file "mpv/mpv.conf" ''
@@ -201,20 +229,20 @@ let
       font_bold=no
     '')
 
+    # sioyek: ~/.config/sioyek/prefs_user.config links here. Pages are recoloured with the custom colour mode.
     (file "sioyek/theme.config" ''
       background_color ${floats c.bg}
+      custom_background_color ${floats c.panel}
+      custom_text_color ${floats c.text}
       dark_mode_background_color ${floats c.bg}
       dark_mode_contrast 0.9
       text_highlight_color ${floats c.accent}
       search_highlight_color ${floats c.warn}
       link_highlight_color ${floats c.accent}
       visual_mark_color ${floats c.accent}
-      ui_text_color ${floats c.text}
-      ui_background_color ${floats c.panel}
-      ui_selected_text_color ${floats c.text}
-      ui_selected_background_color ${floats c.raised}
       status_bar_color ${floats c.panel}
       status_bar_text_color ${floats c.text}
+      startup_commands toggle_custom_color
     '')
 
     (file "spicetify/color.ini" ''
