@@ -224,6 +224,7 @@
 
     # Communication / browsers
     inputs.zen-browser.packages.${system}.default
+    (callPackage ./pkgs/helium.nix { })
     inputs.claude-desktop-extra.packages.${system}.default
     vesktop
     obsidian
@@ -243,7 +244,13 @@
     ckan             # Kerbal Space Program mod manager (used by the bar's Games > KSP tab)
 
     # Gaming
-    lutris
+    # Lutris from unstable: 25.11 ships 0.5.19, three releases behind
+    (import inputs.nixpkgs-unstable {
+      inherit system;
+      config.allowUnfree = true;
+      # Lutris's FHS env still ships gtk2 for old games; unstable flags it as a deprecation nag
+      config.problems.handlers."gtk+".broken = "warn";
+    }).lutris
     (prismlauncher.override {
       additionalLibs = [ libxkbcommon ] ++ (with xorg; [
         libX11 libXtst libxcb libXt libXinerama
