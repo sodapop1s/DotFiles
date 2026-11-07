@@ -1,0 +1,80 @@
+#!/usr/bin/env python3
+"""Switch between the two desktop setups without a rebuild or re-login.
+
+  rice-switch status          show which setup is active
+  rice-switch bar             the original quickshell hub  (niri/config.kdl)
+  rice-switch orbit           the new shell                (niri/config-v2.kdl)
+  rice-switch <name> --dry-run   print what would happen
+
+Swaps the ~/.config/niri/config.kdl symlink (niri reloads it live), stops the
+running quickshell and starts the other one. Only one shell can own the
+notification service, so the old one is always stopped first.
+"""
+import os, subprocess, sys, time
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parent.parent
+LIVE = Path.home() / ".config/niri/config.kdl"
+SETUPS = {"bar": REPO / "niri/config.kdl", "orbit": REPO / "niri/config-v2.kdl"}
+QS_DIR = Path.home() / ".config/quickshell"
+
+
+def run(*cmd, check=True):
+    return subprocess.run(cmd, check=check, capture_output=True, text=True)
+
+
+def active():
+    if LIVE.is_symlink():
+        target = LIVE.resolve()
+        return next((n for n, p in SETUPS.items() if p.resolve() == target), "unknown")
+    return "unmanaged"  # a plain file, not yet handed over to this script
+
+
+def running_shells():
+    out = run("pgrep", "-af", "quickshell", check=False).stdout
+    return [n for n in SETUPS if f"quickshell/{n}" in out or f"-c {n}" in out]
+
+
+def switch(name, dry):
+    cfg, shell_dir = SETUPS[name], QS_DIR / name
+    if not shell_dir.is_dir():
+        sys.exit(f"missing {shell_dir}")
+    v = run("niri", "validate", "-c", str(cfg), check=False)
+    if v.returncode:
+        sys.exit(f"{cfg.name} is not a valid niri config:\n{v.stderr or v.stdout}")
+    steps = []
+    if LIVE.exists() and not LIVE.is_symlink():
+        backup = LIVE.with_name("config.kdl.pre-rice-switch")
+        steps.append(f"keep your current file as {backup}")
+    steps += [f"point {LIVE} at {cfg}", "stop running quickshell",
+              f"start quickshell -c {name}, restore wallpaper"]
+    if dry:
+        print("\n".join(f"would: {s}" for s in steps)); return
+    if LIVE.exists() and not LIVE.is_symlink():
+        LIVE.rename(LIVE.with_name("config.kdl.pre-rice-switch"))
+    tmp = LIVE.with_name(".config.kdl.new")
+    tmp.unlink(missing_ok=True)
+    tmp.symlink_to(cfg)
+    tmp.replace(LIVE)  # atomic: niri never sees a missing file
+    for other in SETUPS:
+        run("qs", "kill", "-c", other, check=False)
+    run("pkill", "-f", "quickshell", check=False)
+    time.sleep(0.5)
+    run("niri", "msg", "action", "spawn", "--", "qs", "-c", name)  # via niri, like the autostart
+    time.sleep(1)
+    run("niri", "msg", "action", "spawn-sh", "--", f"bash {shell_dir}/wallpaper.sh restore", check=False)
+    print(f"now on {name}")
+
+
+def main():
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    dry = "--dry-run" in sys.argv
+    if not args or args[0] == "status":
+        print(f"config: {active()}   shell running: {', '.join(running_shells()) or 'none'}")
+    elif args[0] in SETUPS:
+        switch(args[0], dry)
+    else:
+        sys.exit(__doc__)
+
+
+main()
