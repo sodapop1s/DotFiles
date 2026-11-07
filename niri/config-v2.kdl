@@ -209,13 +209,16 @@ binds {
     Mod+Q hotkey-overlay-title="Open a Terminal: Ghostty" { spawn "ghostty"; }
 
     // Hub (Quickshell bar IPC)
-    // Mod+Space / Mod+R: launcher, not ported yet (step 5)
+    Mod+Space   hotkey-overlay-title="Launcher"        { spawn "qs" "-c" "orbit" "ipc" "call" "panel" "toggle" "launcher"; }
+    Mod+R       hotkey-overlay-title="Launcher"        { spawn "qs" "-c" "orbit" "ipc" "call" "panel" "toggle" "launcher"; }
+    Mod+V       hotkey-overlay-title="Clipboard history" { spawn "qs" "-c" "orbit" "ipc" "call" "panel" "toggle" "clipboard"; }
     Mod+B       hotkey-overlay-title="System panel" { spawn "qs" "-c" "orbit" "ipc" "call" "panel" "toggle" "left"; }
     Mod+Y       hotkey-overlay-title="Day panel"    { spawn "qs" "-c" "orbit" "ipc" "call" "panel" "toggle" "right"; }
 
     // Notifications
     Mod+D       hotkey-overlay-title="Toggle Do Not Disturb"     { spawn "qs" "-c" "orbit" "ipc" "call" "dnd" "toggle"; }
-    // Mod+Alt+N   hotkey-overlay-title="Notification History"      { spawn "qs" "-c" "orbit" "ipc" "call" "hub" "open" "notifs"; }   // not ported yet (step 5)
+    Mod+Alt+N   hotkey-overlay-title="Notifications"             { spawn "qs" "-c" "orbit" "ipc" "call" "panel" "open" "right"; }
+    Mod+E       hotkey-overlay-title="Study"                     { spawn "qs" "-c" "orbit" "ipc" "call" "panel" "toggle" "study"; }
     Mod+N       hotkey-overlay-title="Dismiss Notification"      { spawn "qs" "-c" "orbit" "ipc" "call" "notif" "dismiss"; }
     // Mod+Ctrl+N  hotkey-overlay-title="Quick Note (Obsidian)"       { spawn "qs" "-c" "orbit" "ipc" "call" "hub" "open" "capture"; }   // not ported yet (step 5)
     Mod+Shift+N hotkey-overlay-title="Dismiss All Notifications" { spawn "qs" "-c" "orbit" "ipc" "call" "notif" "dismissAll"; }
@@ -436,7 +439,7 @@ binds {
     Mod+Shift+Equal { set-window-height "+10%"; }
 
     // Move the focused window between the floating and the tiling layout.
-    Mod+V       { toggle-window-floating; }
+    Mod+Alt+V   { toggle-window-floating; }   // Mod+V is the clipboard picker in orbit
     Mod+Shift+V { switch-focus-between-floating-and-tiling; }
 
     // Toggle tabbed column display mode.
