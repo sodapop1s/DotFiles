@@ -8,6 +8,9 @@
     zen-browser.url = "github:youwen5/zen-browser-flake";
     zen-browser.inputs.nixpkgs.follows = "nixpkgs";
     claude-desktop-extra.url = "github:patrickjaja/claude-desktop-extra";
+    # Spotify desktop app, themed from the design tokens (modules/spotify.nix)
+    spicetify-nix.url = "github:Gerg-L/spicetify-nix";
+    spicetify-nix.inputs.nixpkgs.follows = "nixpkgs";
   };
 
   outputs = { self, nixpkgs, ... }@inputs: {

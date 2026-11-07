@@ -10,6 +10,7 @@
     ../../modules/clipboard.nix
     ../../modules/idle.nix
     ../../modules/filemanager.nix
+    ../../modules/spotify.nix
   ];
 
   networking.hostName = "soda-fw";

@@ -245,29 +245,6 @@ let
       startup_commands toggle_custom_color
     '')
 
-    (file "spicetify/color.ini" ''
-      [rice]
-      text = ${noHash c.text}
-      subtext = ${noHash c.muted}
-      main = ${noHash c.bg}
-      main-elevated = ${noHash c.panel}
-      highlight = ${noHash c.raised}
-      highlight-elevated = ${noHash c.raised}
-      sidebar = ${noHash c.panel}
-      player = ${noHash c.panel}
-      card = ${noHash c.raised}
-      shadow = ${noHash c.bg}
-      selected-row = ${noHash c.text}
-      button = ${noHash c.accent}
-      button-active = ${noHash c.accent}
-      button-disabled = ${noHash c.hairline}
-      tab-active = ${noHash c.raised}
-      notification = ${noHash c.raised}
-      notification-error = ${noHash c.crit}
-      equalizer = ${noHash c.accent}
-      misc = ${noHash c.hairline}
-    '')
-
     # swaylock reads this with `swaylock -C <file>` (orbit-lock does); colours are RRGGBB without the #
     (file "swaylock/config" ''
       color=${noHash c.bg}
