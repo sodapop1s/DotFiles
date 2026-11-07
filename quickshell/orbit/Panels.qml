@@ -72,6 +72,6 @@ Item {
         cardWidth: 780
         maxCardHeight: 720
         onCloseRequested: root.active = ""
-        Study { host: root.host; active: root.active === "study" }
+        Study { host: root.host; active: root.active === "study"; onDone: root.active = "" }
     }
 }

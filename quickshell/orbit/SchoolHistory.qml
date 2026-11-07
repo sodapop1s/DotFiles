@@ -2,15 +2,12 @@ import QtQuick
 import QtQuick.Layouts
 import "schoolutil.js" as U
 
-// School > Focus: study time over a longer stretch than the week: the last month, this semester, or everything ever logged.
+// Study > Focus: study time over a longer stretch than the week: the last month, this semester, or everything ever logged.
 // Reads the same focus log as the week chart (days -> { course: minutes }), so nothing is stored twice.
 Rectangle {
     id: root
     required property var fs
     required property var sc
-    readonly property string font: "JetBrainsMono Nerd Font"
-    readonly property color accent: Theme.green
-    readonly property var palette: [Theme.green, Theme.blue, Theme.peach, Theme.mauve, Theme.yellow, Theme.teal, Theme.pink, Theme.sky, Theme.red]
 
     property string range: "semester"                 // month | semester | all
     property string hover: ""                          // tooltip text for the bar under the mouse
@@ -18,7 +15,7 @@ Rectangle {
     readonly property string defaultStart: { var d = new Date(fs.now); return d.getFullYear() + (d.getMonth() >= 7 ? "-08-24" : "-01-12") }
     readonly property string semesterStart: sc.pref("semesterStart", defaultStart)
 
-    Layout.fillWidth: true; implicitHeight: col.implicitHeight + 24; radius: 12; color: Theme.card; border { color: Theme.cardBorder; width: 1 }
+    Layout.fillWidth: true; implicitHeight: col.implicitHeight + 28; radius: 12; color: Theme.raised; border { width: 1; color: Theme.hairline }
 
     function dayDate(iso) { return new Date(iso + "T00:00:00") }
     function monthName(d) { return ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getMonth()] }
@@ -63,11 +60,6 @@ Rectangle {
         buckets.forEach(function (b) { if (b.min > maxMin) maxMin = b.min })
         return { start: start, buckets: buckets, gran: gran, courses: courses, total: total, active: active, best: best, days: spanDays, maxMin: maxMin }
     }
-    function colorOf(course) {
-        if (course === "") return Theme.dim
-        var i = stats.courses.findIndex(function (c) { return c.course === course })
-        return palette[(i < 0 ? 0 : i) % palette.length]
-    }
     function bucketLabel(b) {
         if (stats.gran === "day") return shortDate(b.date)
         if (stats.gran === "month") return monthName(b.date) + " " + b.date.getFullYear()
@@ -81,73 +73,66 @@ Rectangle {
     ColumnLayout {
         id: col
         anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; leftMargin: 14; rightMargin: 14 }
-        spacing: 8
+        spacing: 10
 
         RowLayout {
             Layout.fillWidth: true; spacing: 6
-            Text { text: "󰄪  Study time"; color: Theme.text; font { family: root.font; pixelSize: 12; bold: true } }
+            Text { text: "Study time"; color: Theme.text; font { family: Theme.fontUi; pixelSize: Theme.sizeUi; weight: Font.DemiBold } }
             Item { Layout.fillWidth: true }
             Repeater {
                 model: [["month", "30 days"], ["semester", "Semester"], ["all", "All time"]]
-                delegate: Rectangle {
-                    required property var modelData
-                    readonly property bool sel: root.range === modelData[0]
-                    height: 22; width: rl.implicitWidth + 16; radius: 11
-                    color: sel ? Qt.alpha(root.accent, 0.22) : Theme.card; border { color: sel ? root.accent : Theme.cardBorder; width: 1 }
-                    Text { id: rl; anchors.centerIn: parent; text: modelData[1]; color: sel ? Theme.text : Theme.subtext; font { family: root.font; pixelSize: 10 } }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.range = modelData[0] }
-                }
+                delegate: Chip { required property var modelData; implicitHeight: 26; text: modelData[1]; selected: root.range === modelData[0]; onClicked: root.range = modelData[0] }
             }
         }
 
         // semester start (click to change)
         RowLayout {
             visible: root.range === "semester"
-            Layout.fillWidth: true; spacing: 6
-            Text { text: "since"; color: Theme.dim; font { family: root.font; pixelSize: 10 } }
+            Layout.fillWidth: true; spacing: 8
+            Text { text: "Since"; color: Theme.muted; font { family: Theme.fontUi; pixelSize: 12 } }
             Text {
                 visible: !root.editingStart
-                text: root.shortDate(root.stats.start) + "  ✎"; color: Theme.subtext; font { family: root.font; pixelSize: 10 }
-                MouseArea { anchors.fill: parent; anchors.margins: -4; cursorShape: Qt.PointingHandCursor; onClicked: { root.editingStart = true; startInput.text = root.semesterStart; startInput.forceActiveFocus(); startInput.selectAll() } }
+                text: root.shortDate(root.stats.start) + "  (change)"; color: Theme.text; font { family: Theme.fontUi; pixelSize: 12 }
+                MouseArea { anchors.fill: parent; anchors.margins: -4; onClicked: { root.editingStart = true; startInput.text = root.semesterStart; startInput.input.forceActiveFocus(); startInput.input.selectAll() } }
             }
-            Rectangle {
+            Field {
+                id: startInput
                 visible: root.editingStart
-                Layout.preferredWidth: 100; Layout.preferredHeight: 22; radius: 6; color: Qt.alpha(Theme.mauve, 0.08); border { color: root.accent; width: 1 }
-                TextInput {
-                    id: startInput
-                    anchors { fill: parent; leftMargin: 6; rightMargin: 6 }
-                    verticalAlignment: TextInput.AlignVCenter; color: Theme.text; font { family: root.font; pixelSize: 10 }
-                    onAccepted: root.setStart(text)
-                    Keys.onEscapePressed: root.editingStart = false
-                }
+                Layout.preferredWidth: 130; implicitHeight: 28
+                placeholder: "YYYY-MM-DD"
+                onAccepted: root.setStart(text)
+                input.Keys.onEscapePressed: root.editingStart = false
             }
-            Text { visible: root.editingStart; text: "YYYY-MM-DD, Enter"; color: Theme.dim; font { family: root.font; pixelSize: 9 } }
+            Text { visible: root.editingStart; text: "Press Enter to save"; color: Theme.muted; font { family: Theme.fontUi; pixelSize: 12 } }
             Item { Layout.fillWidth: true }
         }
 
         // headline numbers
         RowLayout {
-            Layout.fillWidth: true; spacing: 14
+            Layout.fillWidth: true; spacing: 22
             ColumnLayout { spacing: 0
-                Text { text: U.minutesText(root.stats.total); color: root.accent; font { family: root.font; pixelSize: 16; bold: true } }
-                Text { text: "total"; color: Theme.dim; font { family: root.font; pixelSize: 9 } } }
+                Text { text: U.minutesText(root.stats.total); color: Theme.text; font { family: Theme.fontUi; pixelSize: 18 } }
+                Text { text: "Total"; color: Theme.muted; font { family: Theme.fontUi; pixelSize: 12 } } }
             ColumnLayout { spacing: 0
-                Text { text: U.minutesText(root.stats.active > 0 ? Math.round(root.stats.total / root.stats.active) : 0); color: Theme.text; font { family: root.font; pixelSize: 16; bold: true } }
-                Text { text: "per study day"; color: Theme.dim; font { family: root.font; pixelSize: 9 } } }
+                Text { text: U.minutesText(root.stats.active > 0 ? Math.round(root.stats.total / root.stats.active) : 0); color: Theme.text; font { family: Theme.fontUi; pixelSize: 18 } }
+                Text { text: "Per study day"; color: Theme.muted; font { family: Theme.fontUi; pixelSize: 12 } } }
             ColumnLayout { spacing: 0
-                Text { text: root.stats.active + " / " + root.stats.days; color: Theme.text; font { family: root.font; pixelSize: 16; bold: true } }
-                Text { text: "days studied"; color: Theme.dim; font { family: root.font; pixelSize: 9 } } }
+                Text { text: root.stats.active + " of " + root.stats.days; color: Theme.text; font { family: Theme.fontUi; pixelSize: 18 } }
+                Text { text: "Days studied"; color: Theme.muted; font { family: Theme.fontUi; pixelSize: 12 } } }
             ColumnLayout { spacing: 0; visible: root.stats.best.min > 0
-                Text { text: U.minutesText(root.stats.best.min); color: Theme.text; font { family: root.font; pixelSize: 16; bold: true } }
-                Text { text: "best · " + (root.stats.best.date ? root.shortDate(root.stats.best.date) : ""); color: Theme.dim; font { family: root.font; pixelSize: 9 } } }
+                Text { text: U.minutesText(root.stats.best.min); color: Theme.text; font { family: Theme.fontUi; pixelSize: 18 } }
+                Text { text: "Best day, " + (root.stats.best.date ? root.shortDate(root.stats.best.date) : ""); color: Theme.muted; font { family: Theme.fontUi; pixelSize: 12 } } }
             Item { Layout.fillWidth: true }
         }
 
-        // the chart: one stacked bar per day / week / month, coloured by course
+        // the chart: one bar per day, week or month
         Item {
-            Layout.fillWidth: true; Layout.preferredHeight: 100
-            Text { anchors.left: parent.left; anchors.top: parent.top; text: root.hover !== "" ? root.hover : (root.stats.total > 0 ? "hover a bar" : "nothing logged in this range yet")
-                   color: root.hover !== "" ? Theme.subtext : Theme.dim; font { family: root.font; pixelSize: 9 } }
+            Layout.fillWidth: true; Layout.preferredHeight: 108
+            Text {
+                anchors.left: parent.left; anchors.top: parent.top
+                text: root.hover !== "" ? root.hover : (root.stats.total > 0 ? "Hover a bar for the details" : "Nothing logged in this range yet")
+                color: root.hover !== "" ? Theme.text : Theme.muted; font { family: Theme.fontUi; pixelSize: 12 }
+            }
             Row {
                 id: bars
                 anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
@@ -160,23 +145,15 @@ Rectangle {
                         required property var modelData
                         width: Math.max(1, (bars.width - bars.spacing * (root.stats.buckets.length - 1)) / root.stats.buckets.length)
                         height: bars.height
-                        Column {
+                        Rectangle {
                             anchors.bottom: parent.bottom; width: parent.width
-                            Repeater {
-                                model: Object.keys(bar.modelData.parts).sort().filter(function (c) { return bar.modelData.parts[c] > 0 })
-                                delegate: Rectangle {
-                                    required property string modelData
-                                    width: parent.width
-                                    height: Math.max(1, bar.modelData.parts[modelData] / Math.max(60, root.stats.maxMin) * bars.height)
-                                    color: root.colorOf(modelData)
-                                    opacity: hv.containsMouse ? 1 : 0.85
-                                }
-                            }
+                            height: bar.modelData.min === 0 ? 1 : Math.max(2, bar.modelData.min / Math.max(60, root.stats.maxMin) * bars.height)
+                            radius: 1
+                            color: hv.containsMouse ? Theme.accent : (bar.modelData.min === 0 ? Theme.hairline : Theme.muted)
                         }
-                        Rectangle { visible: bar.modelData.min === 0; anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Qt.alpha(Theme.mauve, 0.25) }
                         MouseArea {
                             id: hv; anchors.fill: parent; hoverEnabled: true
-                            onEntered: root.hover = root.bucketLabel(bar.modelData) + " · " + U.minutesText(bar.modelData.min)
+                            onEntered: root.hover = root.bucketLabel(bar.modelData) + ", " + U.minutesText(bar.modelData.min)
                             onExited: root.hover = ""
                         }
                     }
@@ -185,11 +162,11 @@ Rectangle {
         }
         RowLayout {
             Layout.fillWidth: true
-            Text { text: root.shortDate(root.stats.start) + (root.stats.start.getFullYear() !== new Date(root.fs.now).getFullYear() ? " " + root.stats.start.getFullYear() : ""); color: Theme.dim; font { family: root.font; pixelSize: 9 } }
+            Text { text: root.shortDate(root.stats.start) + (root.stats.start.getFullYear() !== new Date(root.fs.now).getFullYear() ? " " + root.stats.start.getFullYear() : ""); color: Theme.muted; font { family: Theme.fontUi; pixelSize: 12 } }
             Item { Layout.fillWidth: true }
-            Text { text: root.stats.gran === "day" ? "per day" : root.stats.gran === "week" ? "per week" : "per month"; color: Theme.dim; font { family: root.font; pixelSize: 9 } }
+            Text { text: root.stats.gran === "day" ? "Per day" : root.stats.gran === "week" ? "Per week" : "Per month"; color: Theme.muted; font { family: Theme.fontUi; pixelSize: 12 } }
             Item { Layout.fillWidth: true }
-            Text { text: "today"; color: Theme.dim; font { family: root.font; pixelSize: 9 } }
+            Text { text: "Today"; color: Theme.muted; font { family: Theme.fontUi; pixelSize: 12 } }
         }
 
         // by course over the same range
@@ -198,16 +175,14 @@ Rectangle {
             delegate: ColumnLayout {
                 id: cb
                 required property var modelData
-                Layout.fillWidth: true; spacing: 2
+                Layout.fillWidth: true; spacing: 3
                 RowLayout {
-                    Layout.fillWidth: true; spacing: 6
-                    Rectangle { Layout.preferredWidth: 8; Layout.preferredHeight: 8; radius: 4; color: root.colorOf(cb.modelData.course) }
-                    Text { text: cb.modelData.course === "" ? "General" : cb.modelData.course; color: Theme.text; font { family: root.font; pixelSize: 11 } }
+                    Layout.fillWidth: true
+                    Text { text: cb.modelData.course === "" ? "General" : cb.modelData.course; color: Theme.text; font { family: Theme.fontUi; pixelSize: Theme.sizeUi } }
                     Item { Layout.fillWidth: true }
-                    Text { text: Math.round(cb.modelData.min / Math.max(1, root.stats.total) * 100) + "%  ·  " + U.minutesText(cb.modelData.min); color: Theme.subtext; font { family: root.font; pixelSize: 10 } }
+                    Text { text: Math.round(cb.modelData.min / Math.max(1, root.stats.total) * 100) + "%  ·  " + U.minutesText(cb.modelData.min); color: Theme.muted; font { family: Theme.fontUi; pixelSize: 12 } }
                 }
-                Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 4; radius: 2; color: Qt.alpha(root.colorOf(cb.modelData.course), 0.15)
-                            Rectangle { width: parent.width * cb.modelData.min / Math.max(1, root.stats.courses[0].min); height: parent.height; radius: 2; color: root.colorOf(cb.modelData.course) } }
+                Meter { Layout.fillWidth: true; value: cb.modelData.min / Math.max(1, root.stats.courses[0].min) }
             }
         }
     }

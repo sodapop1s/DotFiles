@@ -4,14 +4,12 @@ import Quickshell
 import "schoolutil.js" as U
 import "grades.js" as G
 
-// School > Grades: current grade per course (from Canvas), and a "what do I need?" calculator.
+// Study > Grades: current grade per course (from Canvas), and a "what do I need?" calculator.
 Item {
     id: root
     required property var bar
+    signal closeRequested()
     readonly property var sc: bar.school
-    readonly property string font: "JetBrainsMono Nerd Font"
-    readonly property color accent: Theme.blue
-    readonly property var palette: [Theme.mauve, Theme.sky, Theme.green, Theme.peach, Theme.pink, Theme.yellow, Theme.teal]
 
     property var    course: null               // the course whose detail page is open
     property var    detail: null               // canvas.sh groups result
@@ -21,8 +19,10 @@ Item {
     property real   assume: 90
     property string pickName: ""               // chosen pending item ("" = all remaining work)
 
+    function gradeTone(s) { return s === null || s === undefined ? Theme.muted : s < 60 ? Theme.crit : s < 70 ? Theme.warn : Theme.text }
+
     Job { id: grpJob; script: Quickshell.shellPath("canvas.sh") }
-    function activate() { if (!sc.configured) return }
+    function activate() {}
     function open(c) {
         course = c; detail = null; error = ""; loading = true; pickName = ""
         var id = c.id
@@ -35,7 +35,7 @@ Item {
                 assume = cur === null ? 90 : Math.round(cur)
                 target = Math.min(100, Math.ceil((cur === null ? 85 : cur) / 5) * 5 + (cur !== null && cur % 5 === 0 ? 5 : 0))
                 if (target <= (cur || 0)) target = Math.min(100, Math.floor((cur || 80) / 5) * 5 + 5)
-            } else error = r && r.error ? r.error : "could not load this course"
+            } else error = r && r.error ? r.error : "Could not load this course."
         })
     }
 
@@ -47,190 +47,166 @@ Item {
         return p ? G.neededOnItem(detail, p.group, p.name, target, assume) : null
     }
 
-    // ── course list ───────────────────────────────────────
-    ListView {
-        id: courses
+    // ── course list ──
+    ColumnLayout {
         visible: root.course === null && root.sc.configured
-        anchors { fill: parent; leftMargin: 14; rightMargin: 14; topMargin: 8; bottomMargin: 10 }
-        clip: true; spacing: 6; boundsBehavior: Flickable.StopAtBounds
-        model: root.sc.courses
-        delegate: Rectangle {
-            id: cr
-            required property var modelData
-            required property int index
-            readonly property color col: root.palette[index % root.palette.length]
-            width: courses.width; height: 64; radius: 12
-            color: ch.hovered ? Qt.alpha(cr.col, 0.10) : Theme.card; border { color: Theme.cardBorder; width: 1 }
-            HoverHandler { id: ch; cursorShape: Qt.PointingHandCursor }
-            MouseArea { anchors.fill: parent; onClicked: root.open(cr.modelData) }
-            RowLayout {
-                anchors { fill: parent; leftMargin: 12; rightMargin: 14 }
-                spacing: 12
-                Rectangle { Layout.preferredWidth: 4; Layout.preferredHeight: 38; radius: 2; color: cr.col }
-                ColumnLayout {
-                    Layout.fillWidth: true; spacing: 3
-                    Text { text: cr.modelData.name; color: Theme.text; elide: Text.ElideRight; Layout.fillWidth: true; textFormat: Text.PlainText; font { family: root.font; pixelSize: 12; bold: true } }
-                    Text { text: cr.modelData.code + (cr.modelData.term ? "  ·  " + cr.modelData.term : ""); color: Theme.dim; elide: Text.ElideRight; Layout.fillWidth: true; textFormat: Text.PlainText; font { family: root.font; pixelSize: 10 } }
-                    Rectangle {
-                        Layout.fillWidth: true; Layout.preferredHeight: 4; radius: 2; color: Qt.alpha(cr.col, 0.15)
-                        Rectangle { width: parent.width * Math.max(0, Math.min(1, (cr.modelData.score || 0) / 100)); height: parent.height; radius: 2; color: cr.col }
+        anchors { fill: parent; topMargin: 6 }
+        spacing: 10
+        Text { text: "Grades"; color: Theme.text; font { family: Theme.fontUi; pixelSize: 18; weight: Font.DemiBold } }
+        ListView {
+            id: courses
+            Layout.fillWidth: true; Layout.fillHeight: true
+            clip: true; spacing: 8
+            boundsBehavior: Flickable.StopAtBounds
+            model: root.sc.courses
+            delegate: Rectangle {
+                id: cr
+                required property var modelData
+                readonly property var score: modelData.score
+                width: courses.width; height: 64; radius: 12
+                color: ch.hovered ? Theme.bg : Theme.raised
+                border { width: 1; color: Theme.hairline }
+                HoverHandler { id: ch }
+                MouseArea { anchors.fill: parent; onClicked: root.open(cr.modelData) }
+                RowLayout {
+                    anchors { fill: parent; leftMargin: 14; rightMargin: 14 }
+                    spacing: 14
+                    ColumnLayout {
+                        Layout.fillWidth: true; spacing: 3
+                        Text { text: cr.modelData.name; color: Theme.text; elide: Text.ElideRight; Layout.fillWidth: true; textFormat: Text.PlainText; font { family: Theme.fontUi; pixelSize: Theme.sizeUi } }
+                        Text { text: cr.modelData.code + (cr.modelData.term ? "  ·  " + cr.modelData.term : ""); color: Theme.muted; elide: Text.ElideRight; Layout.fillWidth: true; textFormat: Text.PlainText; font { family: Theme.fontUi; pixelSize: 12 } }
+                        Meter { Layout.fillWidth: true; value: (cr.score || 0) / 100; tone: root.gradeTone(cr.score) === Theme.text ? Theme.muted : root.gradeTone(cr.score) }
+                    }
+                    ColumnLayout {
+                        spacing: 0
+                        Text { Layout.alignment: Qt.AlignRight; text: cr.score === null || cr.score === undefined ? "–" : cr.score.toFixed(1) + "%"; color: root.gradeTone(cr.score); font { family: Theme.fontUi; pixelSize: 16 } }
+                        Text { Layout.alignment: Qt.AlignRight; text: cr.modelData.grade || (cr.score !== null && cr.score !== undefined ? G.letter(cr.score) : ""); color: Theme.muted; font { family: Theme.fontUi; pixelSize: 12 } }
                     }
                 }
-                ColumnLayout {
-                    spacing: 0
-                    Text { Layout.alignment: Qt.AlignRight; text: cr.modelData.score === null || cr.modelData.score === undefined ? "–" : cr.modelData.score.toFixed(1) + "%"; color: cr.col; font { family: root.font; pixelSize: 15; bold: true } }
-                    Text { Layout.alignment: Qt.AlignRight; text: cr.modelData.grade || (cr.modelData.score !== null && cr.modelData.score !== undefined ? G.letter(cr.modelData.score) : ""); color: Theme.dim; font { family: root.font; pixelSize: 10 } }
-                }
             }
-        }
-        Text {
-            visible: courses.count === 0
-            anchors.centerIn: parent; color: Theme.dim; font { family: root.font; pixelSize: 12 }
-            text: root.sc.syncing ? "loading from Canvas…" : "No courses yet"
+            Text {
+                visible: courses.count === 0
+                anchors.centerIn: parent; color: Theme.muted; font { family: Theme.fontUi; pixelSize: Theme.sizeUi }
+                text: root.sc.syncing ? "Loading from Canvas…" : "No courses yet."
+            }
         }
     }
     Text {
         visible: !root.sc.configured
-        anchors.centerIn: parent; horizontalAlignment: Text.AlignHCenter; color: Theme.dim; font { family: root.font; pixelSize: 12 }
+        anchors.centerIn: parent; horizontalAlignment: Text.AlignHCenter; color: Theme.muted; font { family: Theme.fontUi; pixelSize: Theme.sizeUi }
         text: "Connect Canvas on the Due tab\nto see your grades here."
     }
 
-    // ── one course ────────────────────────────────────────
+    // ── one course ──
     Flickable {
         id: det
         visible: root.course !== null
-        anchors { fill: parent; leftMargin: 14; rightMargin: 14; topMargin: 6; bottomMargin: 10 }
-        contentHeight: detCol.implicitHeight + 8; clip: true; boundsBehavior: Flickable.StopAtBounds
+        anchors { fill: parent; topMargin: 6 }
+        contentHeight: detCol.implicitHeight + 8
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
         ColumnLayout {
             id: detCol
-            width: det.width; spacing: 8
+            width: det.width; spacing: 10
+
             RowLayout {
-                Layout.fillWidth: true; spacing: 8
-                Text {
-                    text: "󰁍"; color: Theme.dim; font { family: root.font; pixelSize: 16 }
-                    MouseArea { anchors.fill: parent; anchors.margins: -5; cursorShape: Qt.PointingHandCursor; onClicked: { root.course = null; root.detail = null } }
-                }
-                Text { text: root.course ? root.course.name : ""; color: Theme.text; elide: Text.ElideRight; Layout.fillWidth: true; textFormat: Text.PlainText; font { family: root.font; pixelSize: 13; bold: true } }
+                Layout.fillWidth: true; spacing: 12
+                Chip { text: "Back"; onClicked: { root.course = null; root.detail = null } }
+                Text { text: root.course ? root.course.name : ""; color: Theme.text; elide: Text.ElideRight; Layout.fillWidth: true; textFormat: Text.PlainText; font { family: Theme.fontUi; pixelSize: 18; weight: Font.DemiBold } }
                 Text {
                     readonly property real cur: root.detail ? (root.detail.score !== null && root.detail.score !== undefined ? root.detail.score : (G.current(root.detail) === null ? -1 : G.current(root.detail))) : -1
-                    text: cur < 0 ? "" : cur.toFixed(1) + "%  " + G.letter(cur); color: root.accent; font { family: root.font; pixelSize: 13; bold: true }
+                    text: cur < 0 ? "" : cur.toFixed(1) + "%  " + G.letter(cur)
+                    color: root.gradeTone(cur < 0 ? null : cur); font { family: Theme.fontUi; pixelSize: 16 }
                 }
             }
-            Text { visible: root.loading; text: "loading…"; color: Theme.dim; font { family: root.font; pixelSize: 11 } }
-            Text { visible: root.error.length > 0; text: root.error; color: Theme.red; font { family: root.font; pixelSize: 11 } }
+            Text { visible: root.loading; text: "Loading…"; color: Theme.muted; font { family: Theme.fontUi; pixelSize: Theme.sizeUi } }
+            Text { visible: root.error.length > 0; text: root.error; color: Theme.crit; font { family: Theme.fontUi; pixelSize: Theme.sizeUi } }
 
-            // groups
             Repeater {
                 model: root.detail ? G.prep(root.detail) : []
                 delegate: Rectangle {
                     id: gr
                     required property var modelData
-                    Layout.fillWidth: true; implicitHeight: 48; radius: 10; color: Theme.card; border { color: Theme.cardBorder; width: 1 }
+                    Layout.fillWidth: true; implicitHeight: 54; radius: 10; color: "transparent"; border { width: 1; color: Theme.hairline }
                     RowLayout {
-                        anchors { fill: parent; leftMargin: 12; rightMargin: 12 }
-                        spacing: 10
+                        anchors { fill: parent; leftMargin: 14; rightMargin: 14 }
+                        spacing: 12
                         ColumnLayout {
-                            Layout.fillWidth: true; spacing: 3
+                            Layout.fillWidth: true; spacing: 4
                             RowLayout {
                                 Layout.fillWidth: true
-                                Text { text: gr.modelData.name; color: Theme.text; elide: Text.ElideRight; Layout.fillWidth: true; textFormat: Text.PlainText; font { family: root.font; pixelSize: 11; bold: true } }
-                                Text { visible: root.detail && root.detail.weighted; text: gr.modelData.weight + "%"; color: Theme.dim; font { family: root.font; pixelSize: 10 } }
+                                Text { text: gr.modelData.name; color: Theme.text; elide: Text.ElideRight; Layout.fillWidth: true; textFormat: Text.PlainText; font { family: Theme.fontUi; pixelSize: Theme.sizeUi } }
+                                Text { visible: root.detail && root.detail.weighted; text: gr.modelData.weight + "% of grade"; color: Theme.muted; font { family: Theme.fontUi; pixelSize: 12 } }
                             }
-                            Rectangle {
-                                Layout.fillWidth: true; Layout.preferredHeight: 4; radius: 2; color: Qt.alpha(root.accent, 0.15)
-                                Rectangle { width: parent.width * Math.max(0, Math.min(1, (gr.modelData.pct || 0) / 100)); height: parent.height; radius: 2; color: root.accent }
-                            }
+                            Meter { Layout.fillWidth: true; value: (gr.modelData.pct || 0) / 100 }
                         }
                         ColumnLayout {
                             spacing: 0
-                            Text { Layout.alignment: Qt.AlignRight; text: gr.modelData.pct === null ? "–" : gr.modelData.pct.toFixed(1) + "%"; color: Theme.text; font { family: root.font; pixelSize: 12; bold: true } }
-                            Text { Layout.alignment: Qt.AlignRight; text: gr.modelData.pendingItems.length + " to go"; visible: gr.modelData.pendingItems.length > 0; color: Theme.dim; font { family: root.font; pixelSize: 9 } }
+                            Text { Layout.alignment: Qt.AlignRight; text: gr.modelData.pct === null ? "–" : gr.modelData.pct.toFixed(1) + "%"; color: Theme.text; font { family: Theme.fontUi; pixelSize: Theme.sizeUi } }
+                            Text { Layout.alignment: Qt.AlignRight; visible: gr.modelData.pendingItems.length > 0; text: gr.modelData.pendingItems.length + " to go"; color: Theme.muted; font { family: Theme.fontUi; pixelSize: 12 } }
                         }
                     }
                 }
             }
 
-            // calculator
-            Rectangle {
+            Card {
                 visible: root.detail !== null
-                Layout.fillWidth: true; implicitHeight: calcCol.implicitHeight + 24; radius: 12
-                color: Qt.alpha(root.accent, 0.07); border { color: Qt.alpha(root.accent, 0.35); width: 1 }
-                ColumnLayout {
-                    id: calcCol
-                    anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 12 }
-                    spacing: 8
-                    Text { text: "What do I need?"; color: root.accent; font { family: root.font; pixelSize: 12; bold: true } }
-                    RowLayout {
-                        Layout.fillWidth: true; spacing: 8
-                        Text { text: "I want to finish with"; color: Theme.subtext; font { family: root.font; pixelSize: 11 } }
-                        Rectangle {
-                            Layout.preferredWidth: 56; Layout.preferredHeight: 28; radius: 8; color: Qt.alpha(Theme.mauve, 0.08); border { color: Theme.sep; width: 1 }
-                            TextInput {
-                                id: targetIn
-                                anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
-verticalAlignment: TextInput.AlignVCenter
-                                text: String(Math.round(root.target)); color: Theme.text; selectByMouse: true; inputMethodHints: Qt.ImhFormattedNumbersOnly
-                                font { family: root.font; pixelSize: 12 }
-                                onTextEdited: { var v = parseFloat(text); if (isFinite(v)) root.target = Math.max(0, Math.min(150, v)) }
-                            }
-                        }
-                        Text { text: "%"; color: Theme.dim; font { family: root.font; pixelSize: 11 } }
-                        Item { Layout.fillWidth: true }
-                        Repeater {
-                            model: [90, 80, 70]
-                            delegate: Rectangle {
-                                required property int modelData
-                                Layout.preferredWidth: 34; Layout.preferredHeight: 24; radius: 8; color: Theme.card; border { color: Theme.cardBorder; width: 1 }
-                                Text { anchors.centerIn: parent; text: G.letter(modelData); color: Theme.text; font { family: root.font; pixelSize: 10 } }
-                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { root.target = modelData; targetIn.text = String(modelData) } }
-                            }
+                spacing: 10
+                Text { text: "What do I need?"; color: Theme.text; font { family: Theme.fontUi; pixelSize: Theme.sizeUi; weight: Font.DemiBold } }
+                RowLayout {
+                    Layout.fillWidth: true; spacing: 8
+                    Text { text: "I want to finish with"; color: Theme.muted; font { family: Theme.fontUi; pixelSize: Theme.sizeUi } }
+                    Field {
+                        id: targetIn
+                        Layout.preferredWidth: 64; implicitHeight: 32
+                        text: String(Math.round(root.target))
+                        input.inputMethodHints: Qt.ImhFormattedNumbersOnly
+                        input.onTextEdited: { var v = parseFloat(text); if (isFinite(v)) root.target = Math.max(0, Math.min(150, v)) }
+                    }
+                    Text { text: "%"; color: Theme.muted; font { family: Theme.fontUi; pixelSize: Theme.sizeUi } }
+                    Item { Layout.fillWidth: true }
+                    Repeater {
+                        model: [90, 80, 70]
+                        delegate: Chip { required property int modelData; text: G.letter(modelData); selected: Math.round(root.target) === modelData; onClicked: { root.target = modelData; targetIn.text = String(modelData) } }
+                    }
+                }
+                Flow {
+                    Layout.fillWidth: true; spacing: 6
+                    Repeater {
+                        model: [{ name: "", label: "All remaining work" }].concat(root.pending.slice(0, 14).map(p => ({ name: p.name, label: p.name })))
+                        delegate: Chip {
+                            required property var modelData
+                            text: modelData.label.length > 28 ? modelData.label.slice(0, 27) + "…" : modelData.label
+                            selected: root.pickName === modelData.name
+                            onClicked: root.pickName = modelData.name
                         }
                     }
-                    // which work to solve for
-                    Flow {
-                        Layout.fillWidth: true; spacing: 5
-                        Repeater {
-                            model: [{ name: "", label: "all remaining work" }].concat(root.pending.slice(0, 14).map(p => ({ name: p.name, label: p.name })))
-                            delegate: Rectangle {
-                                required property var modelData
-                                readonly property bool sel: root.pickName === modelData.name
-                                height: 24; width: Math.min(190, lt.implicitWidth + 18); radius: 12
-                                color: sel ? Qt.alpha(root.accent, 0.22) : Theme.card; border { color: sel ? root.accent : Theme.cardBorder; width: 1 }
-                                Text { id: lt; anchors.centerIn: parent; width: Math.min(172, implicitWidth); elide: Text.ElideRight; text: modelData.label; color: sel ? Theme.text : Theme.subtext; textFormat: Text.PlainText; font { family: root.font; pixelSize: 10 } }
-                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.pickName = modelData.name }
-                            }
-                        }
+                }
+                RowLayout {
+                    visible: root.pickName !== ""
+                    Layout.fillWidth: true; spacing: 8
+                    Text { text: "If everything else scores"; color: Theme.muted; font { family: Theme.fontUi; pixelSize: Theme.sizeUi } }
+                    Field {
+                        Layout.preferredWidth: 64; implicitHeight: 32
+                        text: String(root.assume)
+                        input.onTextEdited: { var v = parseFloat(text); if (isFinite(v)) root.assume = Math.max(0, Math.min(150, v)) }
                     }
-                    RowLayout {
-                        visible: root.pickName !== ""
-                        Layout.fillWidth: true; spacing: 8
-                        Text { text: "if everything else scores"; color: Theme.subtext; font { family: root.font; pixelSize: 11 } }
-                        Rectangle {
-                            Layout.preferredWidth: 56; Layout.preferredHeight: 28; radius: 8; color: Qt.alpha(Theme.mauve, 0.08); border { color: Theme.sep; width: 1 }
-                            TextInput {
-                                anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
-verticalAlignment: TextInput.AlignVCenter
-                                text: String(root.assume); color: Theme.text; selectByMouse: true; font { family: root.font; pixelSize: 12 }
-                                onTextEdited: { var v = parseFloat(text); if (isFinite(v)) root.assume = Math.max(0, Math.min(150, v)) }
-                            }
-                        }
-                        Text { text: "%"; color: Theme.dim; font { family: root.font; pixelSize: 11 } }
+                    Text { text: "%"; color: Theme.muted; font { family: Theme.fontUi; pixelSize: Theme.sizeUi } }
+                }
+                Text {
+                    Layout.fillWidth: true; wrapMode: Text.WordWrap
+                    readonly property var r: root.result
+                    text: {
+                        if (!root.detail) return ""
+                        if (root.pending.length === 0) return "Everything in this course is already graded."
+                        if (!r || r.none) return "Not enough information to work that out."
+                        var what = root.pickName === "" ? "your remaining work" : root.pickName
+                        if (r.secure) return "You are already safe: even 0% on " + what + " keeps you at or above " + Math.round(root.target) + "%."
+                        if (r.impossible) return Math.round(root.target) + "% is out of reach. It would take " + r.pct.toFixed(1) + "% on " + what + ". Try a lower target."
+                        return "You need " + r.pct.toFixed(1) + "% on " + what + (root.pickName !== "" && r.points !== undefined ? " (" + r.points.toFixed(1) + " of " + r.outOf + " points)" : " (on average).")
                     }
-                    Text {
-                        Layout.fillWidth: true; wrapMode: Text.WordWrap
-                        readonly property var r: root.result
-                        text: {
-                            if (!root.detail) return ""
-                            if (root.pending.length === 0) return "Everything in this course is already graded."
-                            if (!r || r.none) return "Not enough information to work that out."
-                            var what = root.pickName === "" ? "your remaining work" : root.pickName
-                            if (r.secure) return "You are already safe: even a 0% on " + what + " keeps you at or above " + Math.round(root.target) + "%."
-                            if (r.impossible) return Math.round(root.target) + "% is out of reach — it would take " + r.pct.toFixed(1) + "% on " + what + ".   Try a lower target."
-                            return "You need " + r.pct.toFixed(1) + "% on " + what + (root.pickName !== "" && r.points !== undefined ? "  (" + r.points.toFixed(1) + " / " + r.outOf + " pts)" : " (on average)") + "."
-                        }
-                        color: !r || r.none ? Theme.dim : r.secure ? Theme.green : r.impossible ? Theme.red : Theme.text
-                        font { family: root.font; pixelSize: 12; bold: true }
-                    }
+                    color: !r || r.none ? Theme.muted : r.secure ? Theme.good : r.impossible ? Theme.crit : Theme.text
+                    font { family: Theme.fontUi; pixelSize: Theme.sizeUi }
                 }
             }
         }
