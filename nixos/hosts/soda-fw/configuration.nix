@@ -8,6 +8,7 @@
     ../../modules/theme
     ../../modules/wallpaper
     ../../modules/clipboard.nix
+    ../../modules/idle.nix
   ];
 
   networking.hostName = "soda-fw";
