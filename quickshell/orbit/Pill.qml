@@ -8,6 +8,8 @@ import Quickshell.Wayland
 PanelWindow {
     id: pill
 
+    required property var host     // the shell root: the study timer lives on host.studyFocus
+
     anchors.bottom: true
     margins.bottom: 14
     implicitWidth: row.implicitWidth + 36
@@ -82,6 +84,21 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     text: Sys.batLevel + "%"
                     color: pill.batTone
+                    font { family: Theme.fontUi; pixelSize: Theme.sizeUi }
+                }
+            }
+
+            // appears only while the study timer is running or paused
+            Row {
+                visible: pill.host.studyFocus.phase !== "idle"
+                spacing: 8
+                Rectangle { width: 1; height: 14; color: Theme.hairline; anchors.verticalCenter: parent.verticalCenter }
+                Rectangle { width: 8; height: 8; radius: 4; anchors.verticalCenter: parent.verticalCenter; color: pill.host.studyFocus.running ? Theme.good : Theme.muted }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    readonly property var fs: pill.host.studyFocus
+                    text: (fs.phase === "focus" ? "Focus " : fs.phase === "break" ? "Break " : "Long break ") + fs.clock(fs.remaining) + (fs.running ? "" : " (paused)")
+                    color: Theme.text
                     font { family: Theme.fontUi; pixelSize: Theme.sizeUi }
                 }
             }

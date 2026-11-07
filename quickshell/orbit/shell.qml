@@ -9,7 +9,6 @@ ShellRoot {
     property bool dndOn: false
 
     // What the old bar used to provide to the School pages (they take the shell as their `bar`).
-    readonly property bool hubOpen: panels.active === "study"
     property alias school: schoolData
     property alias studyFocus: focusState
 
@@ -31,7 +30,7 @@ ShellRoot {
     }
 
     Wallpaper {}
-    Pill {}
+    Pill { host: shell }
     Panels { id: panels; store: notifs; host: shell; school: schoolData }
     Notifications { id: notifs; dnd: shell.dndOn }
 }
