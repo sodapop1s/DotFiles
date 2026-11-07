@@ -208,6 +208,35 @@ let
       misc = ${noHash c.hairline}
     '')
 
+    # swaylock reads this with `swaylock -C <file>` (orbit-lock does); colours are RRGGBB without the #
+    (file "swaylock/config" ''
+      color=${noHash c.bg}
+      font=${t.font.ui},${t.font.uiFallback}
+      indicator-radius=84
+      indicator-thickness=5
+      inside-color=${noHash c.panel}
+      inside-clear-color=${noHash c.panel}
+      inside-ver-color=${noHash c.panel}
+      inside-wrong-color=${noHash c.panel}
+      ring-color=${noHash c.hairline}
+      ring-clear-color=${noHash c.muted}
+      ring-ver-color=${noHash c.accent}
+      ring-wrong-color=${noHash c.crit}
+      key-hl-color=${noHash c.accent}
+      bs-hl-color=${noHash c.crit}
+      line-color=00000000
+      line-clear-color=00000000
+      line-ver-color=00000000
+      line-wrong-color=00000000
+      separator-color=00000000
+      text-color=${noHash c.text}
+      text-clear-color=${noHash c.text}
+      text-ver-color=${noHash c.text}
+      text-wrong-color=${noHash c.crit}
+      show-failed-attempts
+      ignore-empty-password
+    '')
+
     (file "obsidian/rice.css" ''
       body.theme-dark {
         --background-primary: ${c.bg};
