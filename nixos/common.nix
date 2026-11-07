@@ -34,6 +34,8 @@
   # Networking
   networking.networkmanager.enable = true;
   services.tailscale.enable = true;
+  # lets the shell's Tailscale switch run `tailscale up/down` without root
+  services.tailscale.extraSetFlags = [ "--operator=soda" ];
   networking.firewall.trustedInterfaces = [ "tailscale0" "virbr0" ];
 
   # nix-ld: makes non-NixOS binaries (SMAPI, AppImages, VS Code extensions) work

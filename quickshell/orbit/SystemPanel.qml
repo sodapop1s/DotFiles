@@ -26,6 +26,10 @@ Flickable {
     component Label: Text { color: Theme.muted; font { family: Theme.fontUi; pixelSize: 11; capitalization: Font.AllUppercase; letterSpacing: 1 } }
     component Rule: Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.hairline }
 
+    Label { text: "Quick settings" }
+    QuickSettings {}
+    Rule {}
+
     Label { text: "Processor and memory" }
     StatRow { label: "Processor"; value: s.cpu === undefined ? "—" : s.cpu + "%"; fraction: (s.cpu || 0) / 100; tone: root.tone(s.cpu || 0, 80, 95) }
     StatRow { label: "Memory"; value: s.mem === undefined ? "—" : s.mem + "%"; fraction: (s.mem || 0) / 100; tone: root.tone(s.mem || 0, 80, 92) }

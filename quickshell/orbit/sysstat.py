@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One JSON snapshot for the system panel: CPU, memory, temperatures, battery, Wi-Fi, services.
+"""One JSON snapshot for the system panel: CPU, memory, temperatures, battery, Wi-Fi, services, quick settings.
 
 Run only while the panel is open. Services come from ~/.config/orbit/services.json:
   [{"name": "Jellyfin", "host": "homelab", "port": 8096}, ...]
@@ -74,6 +74,42 @@ def wifi():
     return None
 
 
+def run(*cmd):
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=2).stdout
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+
+
+def brightness():
+    for d in sorted(Path("/sys/class/backlight").glob("*")):
+        cur, top = int(read(d / "brightness", "0")), int(read(d / "max_brightness", "0"))
+        if top:
+            return round(100 * cur / top)
+    return None
+
+
+def quick():
+    """state of the quick-settings toggles; a key is None when that thing is not available here"""
+    wifi = run("nmcli", "radio", "wifi").strip()
+    bt = re.search(r"Powered:\s*(yes|no)", run("bluetoothctl", "show"))
+    ts = None
+    try:
+        ts = json.loads(run("tailscale", "status", "--json") or "null")
+    except ValueError:
+        pass
+    vpns = []
+    for line in run("nmcli", "-t", "-f", "NAME,TYPE,STATE", "connection", "show").splitlines():
+        parts = re.split(r"(?<!\\):", line)
+        if len(parts) >= 3 and parts[1] in ("wireguard", "vpn"):
+            vpns.append({"name": parts[0].replace("\\:", ":"), "on": parts[2] == "activated"})
+    return {"brightness": brightness(),
+            "wifi": (wifi == "enabled") if wifi else None,
+            "bluetooth": (bt.group(1) == "yes") if bt else None,
+            "tailscale": (ts.get("BackendState") == "Running") if ts and ts.get("BackendState") else None,
+            "vpns": vpns}
+
+
 def probe(s):
     try:
         with socket.create_connection((s["host"], int(s["port"])), timeout=0.8):
@@ -92,4 +128,4 @@ def services():
 
 
 print(json.dumps({"cpu": cpu_percent(), "mem": mem_percent(), "temps": temps(), "battery": battery(),
-                  "wifi": wifi(), "services": services()}))
+                  "wifi": wifi(), "services": services(), "quick": quick()}))

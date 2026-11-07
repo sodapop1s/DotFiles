@@ -77,6 +77,7 @@ Singleton {
         command: ["python3", Quickshell.shellPath("sysstat.py")]
         stdout: StdioCollector { onStreamFinished: { try { root.stats = JSON.parse(text) } catch (e) {} } }
     }
+    function refreshStats() { if (!statsProc.running) statsProc.running = true }
     Timer {
         interval: 3000; repeat: true; running: root.statsWanted; triggeredOnStart: true
         onTriggered: if (!statsProc.running) statsProc.running = true
