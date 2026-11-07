@@ -168,6 +168,12 @@ window-rule {
     open-floating true
 }
 window-rule {
+    // Isaac (REPENTOGON): full-width tile; game resolution is set in options.ini to match
+    match app-id="steam_app_250900"
+    open-floating false
+    default-column-width { proportion 1.0; }
+}
+window-rule {
     match app-id="steam_app_1281930"
     open-floating false
     default-column-width { proportion 0.5; }
