@@ -100,9 +100,12 @@ layout {
 
 // Quickshell bar (notification daemon is built into the shell)
 spawn-at-startup "qs" "-c" "/home/soda/.config/quickshell/bar"
+// Spotify playback daemon (the bar's Spotify view controls it)
+spawn-at-startup "spotify_player" "-d"
 spawn-at-startup "swww-daemon"
 spawn-at-startup "xwayland-satellite" ":0"
-spawn-sh-at-startup "sleep 1 && swww img '/home/soda/Pictures/Wallpaper/Lake 4.png'"
+// restores the wallpaper last picked in the hub's Wallpaper applet (defaults to the previous one)
+spawn-sh-at-startup "sleep 1 && bash /home/soda/.config/quickshell/bar/wallpaper.sh restore"
 environment {
     DISPLAY ":0"
 }
@@ -207,13 +210,16 @@ binds {
     Mod+Q hotkey-overlay-title="Open a Terminal: Kitty" { spawn "kitty"; }
 
     // Hub (Quickshell bar IPC)
-    Mod+Space   hotkey-overlay-title="Hub / Launcher"      { spawn "qs" "ipc" "call" "hub" "toggle"; }
-    Mod+R       hotkey-overlay-title="Hub / Launcher"      { spawn "qs" "ipc" "call" "hub" "toggle"; }
-    Mod+B       hotkey-overlay-title="Hub / Control Center" { spawn "qs" "ipc" "call" "hub" "toggle"; }
+    Mod+Space   hotkey-overlay-title="Hub / Launcher"      { spawn "qs" "-c" "bar" "ipc" "call" "hub" "toggle"; }
+    Mod+R       hotkey-overlay-title="Hub / Launcher"      { spawn "qs" "-c" "bar" "ipc" "call" "hub" "toggle"; }
+    Mod+B       hotkey-overlay-title="Hub / Control Center" { spawn "qs" "-c" "bar" "ipc" "call" "hub" "toggle"; }
 
     // Notifications
-    Mod+N       hotkey-overlay-title="Dismiss Notification"      { spawn "qs" "ipc" "call" "notif" "dismiss"; }
-    Mod+Shift+N hotkey-overlay-title="Dismiss All Notifications" { spawn "qs" "ipc" "call" "notif" "dismissAll"; }
+    Mod+D       hotkey-overlay-title="Toggle Do Not Disturb"     { spawn "qs" "-c" "bar" "ipc" "call" "dnd" "toggle"; }
+    Mod+Alt+N   hotkey-overlay-title="Notification History"      { spawn "qs" "-c" "bar" "ipc" "call" "hub" "open" "notifs"; }
+    Mod+N       hotkey-overlay-title="Dismiss Notification"      { spawn "qs" "-c" "bar" "ipc" "call" "notif" "dismiss"; }
+    Mod+Ctrl+N  hotkey-overlay-title="Quick Note (Obsidian)"       { spawn "qs" "-c" "bar" "ipc" "call" "hub" "open" "capture"; }
+    Mod+Shift+N hotkey-overlay-title="Dismiss All Notifications" { spawn "qs" "-c" "bar" "ipc" "call" "notif" "dismissAll"; }
 
     // Utilities
     Mod+M       hotkey-overlay-title="System Monitor"       { spawn "kitty" "-e" "btop"; }
@@ -468,4 +474,10 @@ binds {
     // Powers off the monitors. To turn them back on, do any input like
     // moving the mouse or pressing any other key.
     Mod+Shift+P { power-off-monitors; }
+}
+
+// Lid close: only does something while the bar's "Lid off" switch is on (see quickshell/bar/lid-close.sh).
+// logind ignores the lid (nixos/common.nix), so with the switch off closing the lid does nothing.
+switch-events {
+    lid-close { spawn "bash" "/home/soda/.config/quickshell/bar/lid-close.sh"; }
 }
