@@ -55,6 +55,14 @@ ColumnLayout {
         deleter.running = true
     }
 
+    // qs -c orbit ipc call clipboard search <text> | pick | forget   (for scripts and testing; pick copies the selected entry)
+    IpcHandler {
+        target: "clipboard"
+        function search(q: string): void { field.text = q }
+        function pick(): void { root.copy(root.shown[root.sel]) }
+        function forget(): void { root.remove(root.shown[root.sel]) }
+    }
+
     SearchField {
         id: field
         Layout.fillWidth: true
