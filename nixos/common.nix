@@ -164,21 +164,21 @@
 
   # Default apps by file type
   xdg.mime.defaultApplications = {
-    "application/pdf"  = "org.gnome.Papers.desktop";
+    "application/pdf"  = "sioyek.desktop";
     "text/plain"       = "org.gnome.TextEditor.desktop";
-    "video/mp4"        = "vlc.desktop";
-    "video/x-matroska" = "vlc.desktop";
-    "video/webm"       = "vlc.desktop";
-    "video/quicktime"  = "vlc.desktop";
-    "video/x-msvideo"  = "vlc.desktop";
+    "video/mp4"        = "mpv.desktop";
+    "video/x-matroska" = "mpv.desktop";
+    "video/webm"       = "mpv.desktop";
+    "video/quicktime"  = "mpv.desktop";
+    "video/x-msvideo"  = "mpv.desktop";
     "audio/mpeg"       = "vlc.desktop";
     "audio/flac"       = "vlc.desktop";
     "audio/ogg"        = "vlc.desktop";
     "audio/x-wav"      = "vlc.desktop";
-    "image/png"        = "com.interversehq.qView.desktop";
-    "image/jpeg"       = "com.interversehq.qView.desktop";
-    "image/gif"        = "com.interversehq.qView.desktop";
-    "image/webp"       = "com.interversehq.qView.desktop";
+    "image/png"        = "swayimg.desktop";
+    "image/jpeg"       = "swayimg.desktop";
+    "image/gif"        = "swayimg.desktop";
+    "image/webp"       = "swayimg.desktop";
     "inode/directory"  = "thunar.desktop";
   };
 
@@ -266,9 +266,12 @@
     libreoffice
 
     # Default desktop apps
-    vlc
-    mpv
-    papers               # PDF viewer
+    vlc                  # audio default, fallback for odd video
+    (mpv.override { scripts = with mpvScripts; [ uosc thumbfast ]; })
+    sioyek               # PDF viewer (default)
+    papers               # secondary PDF app: forms, signing, markup
+    swayimg              # image viewer (default)
+    yazi                 # terminal file manager
     gnome-text-editor
     pavucontrol          # audio mixer
     networkmanagerapplet # nm-connection-editor
