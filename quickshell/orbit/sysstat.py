@@ -93,6 +93,7 @@ def quick():
     """state of the quick-settings toggles; a key is None when that thing is not available here"""
     wifi = run("nmcli", "radio", "wifi").strip()
     bt = re.search(r"Powered:\s*(yes|no)", run("bluetoothctl", "show"))
+    btdev = [l.split(" ", 2)[2] for l in run("bluetoothctl", "devices", "Connected").splitlines() if l.count(" ") >= 2]
     ts = None
     try:
         ts = json.loads(run("tailscale", "status", "--json") or "null")
@@ -106,6 +107,7 @@ def quick():
     return {"brightness": brightness(),
             "wifi": (wifi == "enabled") if wifi else None,
             "bluetooth": (bt.group(1) == "yes") if bt else None,
+            "bluetoothDevices": btdev,
             "tailscale": (ts.get("BackendState") == "Running") if ts and ts.get("BackendState") else None,
             "vpns": vpns}
 

@@ -220,6 +220,8 @@ binds {
     Mod+D       hotkey-overlay-title="Toggle Do Not Disturb"     { spawn "qs" "-c" "orbit" "ipc" "call" "dnd" "toggle"; }
     Mod+Alt+N   hotkey-overlay-title="Notifications"             { spawn "qs" "-c" "orbit" "ipc" "call" "panel" "open" "right"; }
     Mod+E       hotkey-overlay-title="Study"                     { spawn "qs" "-c" "orbit" "ipc" "call" "panel" "toggle" "study"; }
+    Mod+Shift+W hotkey-overlay-title="Wi-Fi networks"            { spawn "qs" "-c" "orbit" "ipc" "call" "network" "open" "wifi"; }
+    Mod+Shift+B hotkey-overlay-title="Bluetooth devices"         { spawn "qs" "-c" "orbit" "ipc" "call" "network" "open" "bluetooth"; }
     Mod+N       hotkey-overlay-title="Dismiss Notification"      { spawn "qs" "-c" "orbit" "ipc" "call" "notif" "dismiss"; }
     // Mod+Ctrl+N  hotkey-overlay-title="Quick Note (Obsidian)"       { spawn "qs" "-c" "orbit" "ipc" "call" "hub" "open" "capture"; }   // not ported yet (step 5)
     Mod+Shift+N hotkey-overlay-title="Dismiss All Notifications" { spawn "qs" "-c" "orbit" "ipc" "call" "notif" "dismissAll"; }

@@ -10,6 +10,7 @@ ColumnLayout {
     Layout.fillWidth: true
     spacing: 12
 
+    signal manage(string tab)
     readonly property var q: (Sys.stats && Sys.stats.quick) || ({})
     property real holdUntil: 0          // keep the slider where it was dragged until the system catches up
     property int shown: 0
@@ -66,12 +67,18 @@ ColumnLayout {
     Toggle {
         visible: root.q.wifi !== undefined && root.q.wifi !== null
         label: "Wi-Fi"
+        sub: (root.q.wifi ? (Sys.stats.wifi ? "Connected to " + Sys.stats.wifi.ssid : "Not connected") : "Off") + "  ·  Manage"
+        labelActive: true
+        onLabelClicked: root.manage("wifi")
         on: root.q.wifi === true
         onFlipped: root.run(["nmcli", "radio", "wifi", root.q.wifi ? "off" : "on"])
     }
     Toggle {
         visible: root.q.bluetooth !== undefined && root.q.bluetooth !== null
         label: "Bluetooth"
+        sub: (root.q.bluetooth ? ((root.q.bluetoothDevices || []).length ? (root.q.bluetoothDevices || []).join(", ") : "No device connected") : "Off") + "  ·  Manage"
+        labelActive: true
+        onLabelClicked: root.manage("bluetooth")
         on: root.q.bluetooth === true
         onFlipped: root.run(["bluetoothctl", "power", root.q.bluetooth ? "off" : "on"])
     }

@@ -7,7 +7,9 @@ RowLayout {
     property string label: ""
     property string sub: ""
     property bool on: false
+    property bool labelActive: false      // true when clicking the label does something (labelClicked)
     signal flipped()
+    signal labelClicked()
 
     Layout.fillWidth: true
     spacing: 12
@@ -16,6 +18,7 @@ RowLayout {
         spacing: 1
         Text { text: tg.label; color: Theme.text; Layout.fillWidth: true; wrapMode: Text.WordWrap; font { family: Theme.fontUi; pixelSize: Theme.sizeUi } }
         Text { visible: tg.sub.length > 0; text: tg.sub; color: Theme.muted; wrapMode: Text.WordWrap; Layout.fillWidth: true; font { family: Theme.fontUi; pixelSize: 12 } }
+        MouseArea { anchors.fill: parent; enabled: tg.labelActive; onClicked: tg.labelClicked() }
     }
     Rectangle {
         Layout.preferredWidth: 38; Layout.preferredHeight: 22; radius: 11

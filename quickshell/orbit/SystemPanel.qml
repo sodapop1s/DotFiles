@@ -9,6 +9,7 @@ Flickable {
     clip: true
     boundsBehavior: Flickable.StopAtBounds
     property bool open: false
+    signal manage(string tab)
     readonly property var s: Sys.stats
     readonly property var bat: s.battery || null
     readonly property var temps: s.temps || ({})
@@ -27,7 +28,7 @@ Flickable {
     component Rule: Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.hairline }
 
     Label { text: "Quick settings" }
-    QuickSettings {}
+    QuickSettings { onManage: tab => flick.manage(tab) }
     Rule {}
 
     Label { text: "Processor and memory" }

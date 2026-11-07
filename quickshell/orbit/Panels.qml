@@ -4,7 +4,7 @@ import Quickshell.Wayland
 import Quickshell.Io
 
 // The two on-demand panels and the dimming behind them. One is open at a time.
-//   qs -c orbit ipc call panel toggle left|right|launcher|clipboard|study|keys      (also: open <name>, close)
+//   qs -c orbit ipc call panel toggle left|right|launcher|clipboard|study|keys|network      (also: open <name>, close)
 Item {
     id: root
     required property var store      // the Notifications window (history)
@@ -30,6 +30,12 @@ Item {
         function close(): void { root.active = "" }
     }
 
+    // qs -c orbit ipc call network open wifi|bluetooth
+    IpcHandler {
+        target: "network"
+        function open(tab: string): void { net.setTab(tab); root.active = "network" }
+    }
+
     // wallpaper dim; clicking it closes whatever is open
     PanelWindow {
         visible: root.sideOpen || scrimSpring.moving
@@ -47,7 +53,7 @@ Item {
         side: "left"; title: "System"
         open: root.active === "left"
         onCloseRequested: root.active = ""
-        SystemPanel { open: root.active === "left" }
+        SystemPanel { open: root.active === "left"; onManage: tab => { net.setTab(tab); root.active = "network" } }
     }
     EdgePanel {
         side: "right"; title: "Day"
@@ -66,6 +72,13 @@ Item {
         cardWidth: 720
         onCloseRequested: root.active = ""
         ClipboardPicker { active: root.active === "clipboard"; onDone: root.active = "" }
+    }
+    Overlay {
+        open: root.active === "network"
+        cardWidth: 640
+        maxCardHeight: 700
+        onCloseRequested: root.active = ""
+        NetworkWindow { id: net; active: root.active === "network" }
     }
     Overlay {
         open: root.active === "keys"

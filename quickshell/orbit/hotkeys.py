@@ -32,6 +32,8 @@ MENU = [
         ("System panel", r'"toggle" "left"'),
         ("Day panel", r'"toggle" "right"'),
         ("Study", r'"toggle" "study"'),
+        ("Wi-Fi networks", r'"network" "open" "wifi"'),
+        ("Bluetooth devices", r'"network" "open" "bluetooth"'),
         ("Notifications", r'"panel" "open" "right"'),
         ("Do not disturb", r'"call" "dnd"'),
         ("Dismiss notification", r'"notif" "dismiss"$'),
