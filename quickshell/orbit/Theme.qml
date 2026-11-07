@@ -3,90 +3,71 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// The one place colours live. Every other file reads Theme.<token>; switching `name` repaints the whole shell.
-//   qs -c orbit ipc call theme set nord      qs -c orbit ipc call theme next      qs -c orbit ipc call theme list
-// Your own palettes go in ~/.config/qs-bar/themes.json as { "name": { "label": "...", "text": "#...", ... } }
-// (any token you leave out is taken from Mocha). The choice is remembered in ~/.local/state/qs-orbit-theme.json.
+// Design tokens for the shell. Values come from nixos/modules/theme/tokens.nix, generated to tokens.json.
+// The defaults below are the same values, so the shell still renders if the file is missing.
+// The old Catppuccin-era names (mauve, peach, ...) are kept as aliases of the new palette so the
+// legacy hub files keep working until step 5 ports or removes them.
 Singleton {
     id: root
 
-    property string name: "mocha"
-
-    readonly property var builtin: ({
-        mocha:     { label: "Catppuccin Mocha",     base: "#1e1e2e", panel: "#242436", surface: "#313244", crust: "#11111b", text: "#b4befe", bright: "#cdd6f4", subtext: "#a6adc8", dim: "#6c7086",
-                     mauve: "#cba6f7", pink: "#f5c2e7", peach: "#fab387", teal: "#94e2d5", sky: "#89dceb", green: "#a6e3a1", yellow: "#f9e2af", red: "#f38ba8", blue: "#89b4fa" },
-        macchiato: { label: "Catppuccin Macchiato", base: "#24273a", panel: "#1e2030", surface: "#363a4f", crust: "#181926", text: "#b7bdf8", bright: "#cad3f5", subtext: "#a5adcb", dim: "#6e738d",
-                     mauve: "#c6a0f6", pink: "#f5bde6", peach: "#f5a97f", teal: "#8bd5ca", sky: "#91d7e3", green: "#a6da95", yellow: "#eed49f", red: "#ed8796", blue: "#8aadf4" },
-        frappe:    { label: "Catppuccin Frappé",    base: "#303446", panel: "#292c3c", surface: "#414559", crust: "#232634", text: "#babbf1", bright: "#c6d0f5", subtext: "#a5adce", dim: "#737994",
-                     mauve: "#ca9ee6", pink: "#f4b8e4", peach: "#ef9f76", teal: "#81c8be", sky: "#99d1db", green: "#a6d189", yellow: "#e5c890", red: "#e78284", blue: "#8caaee" },
-        latte:     { label: "Catppuccin Latte (light)", base: "#eff1f5", panel: "#e6e9ef", surface: "#ccd0da", crust: "#eff1f5", text: "#4c4f69", bright: "#4c4f69", subtext: "#5c5f77", dim: "#8c8fa1",
-                     mauve: "#8839ef", pink: "#ea76cb", peach: "#fe640b", teal: "#179299", sky: "#04a5e5", green: "#40a02b", yellow: "#df8e1d", red: "#d20f39", blue: "#1e66f5" },
-        tokyo:     { label: "Tokyo Night",          base: "#1a1b26", panel: "#16161e", surface: "#292e42", crust: "#15161e", text: "#c0caf5", bright: "#c0caf5", subtext: "#a9b1d6", dim: "#565f89",
-                     mauve: "#bb9af7", pink: "#ff9cc8", peach: "#ff9e64", teal: "#73daca", sky: "#7dcfff", green: "#9ece6a", yellow: "#e0af68", red: "#f7768e", blue: "#7aa2f7" },
-        gruvbox:   { label: "Gruvbox Dark",         base: "#282828", panel: "#1d2021", surface: "#3c3836", crust: "#1d2021", text: "#ebdbb2", bright: "#fbf1c7", subtext: "#d5c4a1", dim: "#928374",
-                     mauve: "#d3869b", pink: "#f2a6c0", peach: "#fe8019", teal: "#8ec07c", sky: "#7fb3b0", green: "#b8bb26", yellow: "#fabd2f", red: "#fb4934", blue: "#83a598" },
-        nord:      { label: "Nord",                 base: "#2e3440", panel: "#272c36", surface: "#3b4252", crust: "#242933", text: "#d8dee9", bright: "#eceff4", subtext: "#c2c9d6", dim: "#616e88",
-                     mauve: "#b48ead", pink: "#c895bf", peach: "#d08770", teal: "#8fbcbb", sky: "#88c0d0", green: "#a3be8c", yellow: "#ebcb8b", red: "#bf616a", blue: "#81a1c1" },
-        rosepine:  { label: "Rosé Pine",            base: "#191724", panel: "#1f1d2e", surface: "#26233a", crust: "#12101c", text: "#e0def4", bright: "#e0def4", subtext: "#908caa", dim: "#6e6a86",
-                     mauve: "#c4a7e7", pink: "#ebbcba", peach: "#f6c177", teal: "#9ccfd8", sky: "#a5d4de", green: "#a9d4a0", yellow: "#f6d58f", red: "#eb6f92", blue: "#6aa6d6" },
-        dracula:   { label: "Dracula",              base: "#282a36", panel: "#21222c", surface: "#44475a", crust: "#191a21", text: "#f8f8f2", bright: "#f8f8f2", subtext: "#c0c4d6", dim: "#6272a4",
-                     mauve: "#bd93f9", pink: "#ff79c6", peach: "#ffb86c", teal: "#7fe5c8", sky: "#8be9fd", green: "#50fa7b", yellow: "#f1fa8c", red: "#ff5555", blue: "#6d9bf7" }
+    property var tokens: ({
+        color: { bg: "#0E1013", panel: "#171A1F", raised: "#20242B", hairline: "#2C313A", text: "#F2F4F7", muted: "#8B93A1",
+                 accent: "#4C9EFF", good: "#3FCF8E", warn: "#F5A524", crit: "#F2555A" },
+        font: { ui: "D-DIN", uiFallback: "Inter", mono: "JetBrainsMono Nerd Font", monoSize: 12, uiSize: 13 },
+        motion: { spring: { dampingRatio: 0.75, stiffness: 700, epsilon: 0.0001 } },
+        radius: 12, gap: 8
     })
-    property var custom: ({})
-    readonly property var all: Object.assign({}, builtin, custom)
-    readonly property var names: Object.keys(builtin).concat(Object.keys(custom).filter(n => !(n in builtin)))
-    readonly property var p: Object.assign({}, builtin.mocha, all[name] || {})
-
-    readonly property color base:    p.base
-    readonly property color panel:   p.panel
-    readonly property color surface: p.surface
-    readonly property color crust:   p.crust
-    readonly property color text:    p.text
-    readonly property color bright:  p.bright
-    readonly property color subtext: p.subtext
-    readonly property color dim:     p.dim
-    readonly property color mauve:   p.mauve
-    readonly property color pink:    p.pink
-    readonly property color peach:   p.peach
-    readonly property color teal:    p.teal
-    readonly property color sky:     p.sky
-    readonly property color green:   p.green
-    readonly property color yellow:  p.yellow
-    readonly property color red:     p.red
-    readonly property color blue:    p.blue
-    // shared surfaces, all derived from the palette
-    readonly property color card:         Qt.alpha(mauve, 0.06)
-    readonly property color cardBorder:   Qt.alpha(mauve, 0.10)
-    readonly property color sep:          Qt.alpha(mauve, 0.25)
-    readonly property color islandBg:     Qt.alpha(surface, 0.92)
-    readonly property color islandBorder: Qt.alpha(mauve, 0.15)
-    // light themes need dark scrims/overlays and the other way round
-    readonly property bool light: base.hslLightness > 0.6
-
-    function setTheme(n) {
-        if (!(n in all)) return false
-        name = n
-        stateFile.setText(JSON.stringify({ name: n }))
-        return true
-    }
-    function next() { setTheme(names[(names.indexOf(name) + 1) % names.length]) }
 
     FileView {
-        id: stateFile
-        path: Quickshell.env("HOME") + "/.local/state/qs-orbit-theme.json"
-        onLoaded: { try { var n = JSON.parse(stateFile.text()).name; if (n) root.name = n } catch (e) {} }
-    }
-    FileView {
-        path: Quickshell.env("HOME") + "/.config/qs-bar/themes.json"
-        watchChanges: true
-        onFileChanged: reload()
-        onLoaded: { try { root.custom = JSON.parse(text()) } catch (e) { root.custom = ({}) } }
+        path: "/run/current-system/sw/share/rice-theme/tokens.json"
+        onLoaded: { try { root.tokens = JSON.parse(text()) } catch (e) {} }
     }
 
-    IpcHandler {
-        target: "theme"
-        function set(name: string): string { return root.setTheme(name) ? "ok" : "unknown theme; try: " + root.names.join(", ") }
-        function next(): void { root.next() }
-        function list(): string { return root.names.map(n => (n === root.name ? "* " : "  ") + n).join("\n") }
-    }
+    readonly property color bg:       tokens.color.bg
+    readonly property color panel:    tokens.color.panel
+    readonly property color raised:   tokens.color.raised
+    readonly property color hairline: tokens.color.hairline
+    readonly property color text:     tokens.color.text
+    readonly property color muted:    tokens.color.muted
+    readonly property color accent:   tokens.color.accent    // focus and selection only
+    readonly property color good:     tokens.color.good      // states only
+    readonly property color warn:     tokens.color.warn
+    readonly property color crit:     tokens.color.crit
+
+    readonly property real radius: tokens.radius
+    readonly property real gap:    tokens.gap
+
+    readonly property var families: Qt.fontFamilies()
+    readonly property string fontUi:   families.indexOf(tokens.font.ui) >= 0 ? tokens.font.ui : tokens.font.uiFallback
+    readonly property string fontMono: tokens.font.mono
+    readonly property int sizeUi:   tokens.font.uiSize
+    readonly property int sizeMono: tokens.font.monoSize
+
+    // the one spring, shared with niri (see Spring.qml)
+    readonly property real springDampingRatio: tokens.motion.spring.dampingRatio
+    readonly property real springStiffness:    tokens.motion.spring.stiffness
+    readonly property real springEpsilon:      tokens.motion.spring.epsilon
+
+    // ── legacy aliases ──
+    readonly property color base:    bg
+    readonly property color crust:   bg
+    readonly property color surface: raised
+    readonly property color bright:  text
+    readonly property color subtext: muted
+    readonly property color dim:     Qt.alpha(muted, 0.7)
+    readonly property color mauve:   accent
+    readonly property color blue:    accent
+    readonly property color sky:     accent
+    readonly property color teal:    accent
+    readonly property color pink:    accent
+    readonly property color green:   good
+    readonly property color yellow:  warn
+    readonly property color peach:   warn
+    readonly property color red:     crit
+    readonly property color card:         Qt.alpha(raised, 0.6)
+    readonly property color cardBorder:   hairline
+    readonly property color sep:          hairline
+    readonly property color islandBg:     Qt.alpha(panel, 0.96)
+    readonly property color islandBorder: hairline
+    readonly property bool light: false
 }
