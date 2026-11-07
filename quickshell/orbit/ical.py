@@ -1,16 +1,22 @@
 #!/usr/bin/env python3
-"""Calendar helper for the Quickshell bar: reads an ICS feed (Proton Calendar "Share via link").
+"""Calendar helper for the Quickshell shell: reads one or more ICS feeds.
 
-  ical.py sync                         download the feed (URL in ~/.config/qs-bar/calendar-url)
+Works with any calendar that publishes an ICS link. For Google Calendar use "Secret address in iCal
+format" (Calendar settings, the calendar, Integrate calendar); Proton's "Share via link" works too.
+
+  ical.py sync                         download every feed (links in ~/.config/orbit/calendar-url, one per line)
   ical.py status                       {hasUrl, cachedAt, count, name}
   ical.py events <YYYY-MM-DD> <YYYY-MM-DD> [--file f.ics]
-                                           events overlapping [from, to) in local time, as JSON
-  ical.py seturl                       read a URL from stdin and store it (mode 600)
+                                           events overlapping [from, to) in local time, as JSON (all calendars merged)
+  ical.py seturl                       read link(s) from stdin, one per line, and store them (mode 600)
+
+orbit keeps its own link file. Until it has one, the old bar's ~/.config/qs-bar/calendar-url is used, so
+bar and orbit can follow different calendars. The links are secrets: they are never printed or logged.
 
 Only the standard library is used. Repeating events (RRULE, EXDATE, modified occurrences) and
 time zones (TZID, UTC) are handled. The feed is read-only: nothing is ever written back.
 """
-import json, os, re, sys, tempfile, time, urllib.error, urllib.request
+import glob, json, os, re, sys, tempfile, time, urllib.error, urllib.request
 from datetime import date, datetime, timedelta, timezone
 from calendar import monthrange
 
@@ -20,8 +26,18 @@ except ImportError:  # pragma: no cover
     ZoneInfo = None
 
 HOME = os.path.expanduser("~")
-URL_FILE = os.path.join(HOME, ".config/qs-bar/calendar-url")
-CACHE = os.path.join(HOME, ".cache/qs-orbit-calendar.ics")
+URL_FILE = os.path.join(HOME, ".config/orbit/calendar-url")
+LEGACY_URL_FILE = os.path.join(HOME, ".config/qs-bar/calendar-url")      # the old bar's link, used until orbit has its own
+CACHE = os.path.join(HOME, ".cache/qs-orbit-calendar.ics")                # feed 0; feed N is qs-orbit-calendar-N.ics
+
+
+def cache_path(i):
+    return CACHE if i == 0 else CACHE[:-4] + "-%d.ics" % i
+
+
+def cache_files():
+    """every cached feed that exists, in order"""
+    return [p for p in [CACHE] + sorted(glob.glob(CACHE[:-4] + "-*.ics")) if os.path.exists(p)]
 WD = {"MO": 0, "TU": 1, "WE": 2, "TH": 3, "FR": 4, "SA": 5, "SU": 6}
 
 
@@ -402,69 +418,95 @@ def expand(events, win_start, win_end):
 
 
 # ── commands ──────────────────────────────────────────────
-def read_url():
-    try:
-        for line in open(URL_FILE):
-            line = line.strip()
-            if line and not line.startswith("#"):
-                return line
-    except OSError:
-        pass
-    return ""
+def read_urls():
+    for path in (URL_FILE, LEGACY_URL_FILE):
+        try:
+            urls = [l.strip() for l in open(path) if l.strip() and not l.strip().startswith("#")]
+        except OSError:
+            continue
+        if urls:
+            return urls
+    return []
 
 
 def cmd_seturl():
-    url = sys.stdin.read().strip()
-    if not re.match(r"^(https?|webcal)://", url):
+    urls = [l.strip() for l in sys.stdin.read().splitlines() if l.strip()]
+    if not urls or not all(re.match(r"^(https?|webcal)://", u) for u in urls):
         fail("that does not look like a calendar link")
     os.makedirs(os.path.dirname(URL_FILE), exist_ok=True)
     fd = os.open(URL_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    os.fchmod(fd, 0o600)                         # O_CREAT keeps the mode of a file that already exists
     with os.fdopen(fd, "w") as f:
-        f.write(url + "\n")
-    out({"ok": True})
+        f.write("\n".join(urls) + "\n")
+    out({"ok": True, "calendars": len(urls)})
 
 
-def cmd_sync():
-    url = read_url()
-    if not url:
-        fail("no-url")
+def download(url):
+    """the feed text, or raises RuntimeError with a message that does not contain the link"""
     url = re.sub(r"^webcal://", "https://", url)
     req = urllib.request.Request(url, headers={"User-Agent": "qs-orbit-calendar/1.0"})
     try:
-        with urllib.request.urlopen(req, timeout=20) as r:
+        with urllib.request.urlopen(req, timeout=30) as r:
             body = r.read().decode("utf-8", errors="replace")
     except urllib.error.HTTPError as e:
-        fail("calendar server answered HTTP %d" % e.code)
+        raise RuntimeError("calendar server answered HTTP %d" % e.code)
     except Exception as e:
-        fail("could not download the calendar (%s)" % type(e).__name__)
+        raise RuntimeError("could not download the calendar (%s)" % type(e).__name__)
     if "BEGIN:VCALENDAR" not in body[:2000]:
-        fail("that link did not return a calendar file")
+        raise RuntimeError("that link did not return a calendar file")
+    return body
+
+
+def cmd_sync():
+    urls = read_urls()
+    if not urls:
+        fail("no-url")
     os.makedirs(os.path.dirname(CACHE), exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(CACHE))
-    with os.fdopen(fd, "w") as f:
-        f.write(body)
-    os.chmod(tmp, 0o600)
-    os.replace(tmp, CACHE)
-    events, name = parse_events(body)
-    out({"ok": True, "count": len(events), "name": name})
+    count, names, errors = 0, [], []
+    for i, url in enumerate(urls):
+        try:
+            body = download(url)
+        except RuntimeError as e:
+            errors.append(str(e))
+            continue
+        fd, tmp = tempfile.mkstemp(dir=os.path.dirname(CACHE))
+        with os.fdopen(fd, "w") as f:
+            f.write(body)
+        os.chmod(tmp, 0o600)
+        os.replace(tmp, cache_path(i))
+        events, name = parse_events(body)
+        count += len(events)
+        if name:
+            names.append(name)
+    if len(errors) == len(urls):
+        fail(errors[0])
+    for p in cache_files():                      # feeds that are no longer listed
+        if p not in [cache_path(i) for i in range(len(urls))]:
+            os.remove(p)
+    out({"ok": True, "count": count, "name": ", ".join(names), "failed": len(errors)})
 
 
 def cmd_status():
-    info = {"hasUrl": bool(read_url()), "cachedAt": 0, "count": 0, "name": ""}
-    try:
-        info["cachedAt"] = int(os.path.getmtime(CACHE))
-        events, name = parse_events(open(CACHE, encoding="utf-8", errors="replace").read())
-        info["count"], info["name"] = len(events), name
-    except OSError:
-        pass
+    info = {"hasUrl": bool(read_urls()), "cachedAt": 0, "count": 0, "name": ""}
+    names = []
+    for p in cache_files():
+        try:
+            info["cachedAt"] = max(info["cachedAt"], int(os.path.getmtime(p)))
+            events, name = parse_events(open(p, encoding="utf-8", errors="replace").read())
+            info["count"] += len(events)
+            if name:
+                names.append(name)
+        except OSError:
+            pass
+    info["name"] = ", ".join(names)
     out(info)
 
 
 def cmd_events(args):
-    path = CACHE
+    paths = None
     if "--file" in args:
         i = args.index("--file")
-        path = args[i + 1]
+        paths = [args[i + 1]]
         args = args[:i] + args[i + 2:]
     if len(args) < 2:
         fail("usage: ical.py events <from> <to>")
@@ -473,11 +515,15 @@ def cmd_events(args):
         we = datetime.strptime(args[1], "%Y-%m-%d")
     except ValueError:
         fail("dates must look like 2026-10-31")
-    try:
-        text = open(path, encoding="utf-8", errors="replace").read()
-    except OSError:
+    paths = paths or cache_files()
+    if not paths:
         fail("not-synced")
-    events, _ = parse_events(text)
+    events = []
+    for path in paths:
+        try:
+            events += parse_events(open(path, encoding="utf-8", errors="replace").read())[0]
+        except OSError:
+            fail("not-synced")
     out(expand(events, ws, we))
 
 
