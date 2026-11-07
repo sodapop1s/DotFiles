@@ -6,6 +6,7 @@
     ../../common.nix
     ../../modules/omdrop.nix
     ../../modules/theme
+    ../../modules/wallpaper
   ];
 
   networking.hostName = "soda-fw";
