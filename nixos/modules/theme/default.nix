@@ -66,6 +66,8 @@ let
       font-size = ${toString t.font.monoSize}
     '')
 
+    # GTK colours. libadwaita (GTK4) reads the first block, the Adwaita theme in GTK3 (Thunar, ...) the second.
+    # Wire it in with: @import url("file:///run/current-system/sw/share/rice-theme/gtk/gtk.css");
     (file "gtk/gtk.css" ''
       @define-color accent_bg_color ${c.accent};
       @define-color accent_fg_color ${c.bg};
@@ -87,6 +89,28 @@ let
       @define-color warning_color ${c.warn};
       @define-color error_color ${c.crit};
       @define-color destructive_color ${c.crit};
+
+      @define-color theme_bg_color ${c.bg};
+      @define-color theme_fg_color ${c.text};
+      @define-color theme_base_color ${c.panel};
+      @define-color theme_text_color ${c.text};
+      @define-color theme_selected_bg_color ${c.accent};
+      @define-color theme_selected_fg_color ${c.bg};
+      @define-color theme_unfocused_bg_color ${c.bg};
+      @define-color theme_unfocused_fg_color ${c.muted};
+      @define-color theme_unfocused_base_color ${c.panel};
+      @define-color theme_unfocused_text_color ${c.text};
+      @define-color theme_unfocused_selected_bg_color ${c.raised};
+      @define-color theme_unfocused_selected_fg_color ${c.text};
+      @define-color insensitive_bg_color ${c.panel};
+      @define-color insensitive_fg_color ${c.muted};
+      @define-color insensitive_base_color ${c.panel};
+      @define-color borders ${c.hairline};
+      @define-color unfocused_borders ${c.hairline};
+      @define-color content_view_bg ${c.panel};
+      @define-color link_color ${c.accent};
+      @define-color tooltip_bg_color ${c.raised};
+      @define-color tooltip_fg_color ${c.text};
     '')
 
     # Neovim: add to runtimepath, then `colorscheme rice`
@@ -140,6 +164,14 @@ let
       [tasks]
       border = { fg = "${c.hairline}" }
       hovered = { fg = "${c.text}", bg = "${c.raised}" }
+
+      # yazi's own file-type colours (orange images, green archives, ...) are outside the palette:
+      # folders are bold, everything else is plain text
+      [filetype]
+      rules = [
+        { url = "*/", fg = "${c.text}", bold = true },
+        { url = "*", fg = "${c.text}" },
+      ]
     '')
 
     (file "swayimg/theme.conf" ''
@@ -260,7 +292,9 @@ let
   ];
 in
 {
-  environment.systemPackages = [ (pkgs.linkFarm "rice-theme" files) ];
+  # adw-gtk3 is the GTK3 theme that reads the libadwaita colour names generated above; GTK3's own Adwaita
+  # bakes its colours in and ignores them. Select it with gtk-theme-name=adw-gtk3-dark.
+  environment.systemPackages = [ (pkgs.linkFarm "rice-theme" files) pkgs.adw-gtk3 ];
   # pathsToLink is an allow-list; without this the files never reach /run/current-system/sw
   environment.pathsToLink = [ "/share/rice-theme" ];
 }
