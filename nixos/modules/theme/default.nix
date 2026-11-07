@@ -296,5 +296,14 @@ in
   # bakes its colours in and ignores them. Select it with gtk-theme-name=adw-gtk3-dark.
   environment.systemPackages = [ (pkgs.linkFarm "rice-theme" files) pkgs.adw-gtk3 ];
   # pathsToLink is an allow-list; without this the files never reach /run/current-system/sw
+  # dconf overrides gtk-theme-name in settings.ini, so the theme has to be set here as well. color-scheme is what
+  # libadwaita (GTK4) apps such as Papers read to choose dark.
+  programs.dconf.profiles.user.databases = [{
+    settings."org/gnome/desktop/interface" = {
+      gtk-theme = "adw-gtk3-dark";
+      color-scheme = "prefer-dark";
+    };
+  }];
+
   environment.pathsToLink = [ "/share/rice-theme" ];
 }
