@@ -4,6 +4,7 @@
   imports = [
     ./hardware-configuration.nix
     ../../common.nix
+    ../../modules/omdrop.nix
   ];
 
   networking.hostName = "soda-fw";
@@ -14,6 +15,7 @@
   # Bluetooth
   hardware.bluetooth.enable      = true;
   hardware.bluetooth.powerOnBoot = true;
+  services.blueman.enable        = true;  # Bluetooth GUI
 
   # Restrict BT to A2DP only (no headset mic / HFP profile)
   services.pipewire.wireplumber.extraConfig."51-bluez-a2dp-only" = {
@@ -22,9 +24,21 @@
     };
   };
 
+  # AirDrop to/from iPhones. The Wi-Fi card is an MT7922 (mt7921e), which omdrop-owl
+  # lists as untested, hence allowUntested. Needs the AP on channel 6, 44 or 149.
+  services.omdrop.enable        = true;
+  services.omdrop.allowUntested = true;
+
   # Compressed RAM swap — the iGPU shares system RAM, so modded KSP OOMs without it
   zramSwap.enable = true;
 
-  # Plain btop — no ROCm dependency on the laptop
-  environment.systemPackages = with pkgs; [ btop ];
+  # Mesa VAAPI/VDPAU for the 780M iGPU — Moonlight decodes HEVC/AV1 through it
+  hardware.graphics.enable = true;
+
+  environment.systemPackages = with pkgs; [
+    # Plain btop — no ROCm dependency on the laptop
+    btop
+    # Game-streaming client for Sunshine on soda-desk (client only, no firewall ports)
+    moonlight-qt
+  ];
 }
