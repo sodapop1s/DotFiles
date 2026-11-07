@@ -2,14 +2,22 @@ import QtQuick
 import QtQuick.Layouts
 
 // Left panel: how the machine is doing.
-ColumnLayout {
-    id: root
+Flickable {
+    id: flick
     anchors.fill: parent
-    spacing: 16
-
+    contentHeight: root.implicitHeight
+    clip: true
+    boundsBehavior: Flickable.StopAtBounds
+    property bool open: false
     readonly property var s: Sys.stats
     readonly property var bat: s.battery || null
     readonly property var temps: s.temps || ({})
+
+    ColumnLayout {
+    id: root
+    width: flick.width
+    spacing: 16
+
 
     function tone(v, warn, crit) { return v >= crit ? Theme.crit : v >= warn ? Theme.warn : Theme.text }
     function mins(m) { return m === null || m === undefined ? "—" : (m >= 60 ? Math.floor(m / 60) + " h " + (m % 60) + " min" : m + " min") }
@@ -55,6 +63,14 @@ ColumnLayout {
     }
     Rule {}
 
+    Label { text: "Audio" }
+    AudioSection {}
+    Rule {}
+
+    Label { text: "AirDrop" }
+    AirDropSection { active: flick.open }
+    Rule {}
+
     Label { text: "Services" }
     Repeater {
         model: s.services || []
@@ -72,5 +88,5 @@ ColumnLayout {
         color: Theme.muted; font { family: Theme.fontUi; pixelSize: 12 }
     }
 
-    Item { Layout.fillHeight: true }
+    }
 }

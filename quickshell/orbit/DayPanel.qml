@@ -5,12 +5,24 @@ import "schoolutil.js" as U
 
 // Right panel: what the day looks like. Classes and deadlines come from the existing calendar
 // and Canvas helpers (SchoolData); media comes from whatever player is running.
-ColumnLayout {
-    id: root
+Flickable {
+    id: flick
     anchors.fill: parent
+    contentHeight: root.implicitHeight
+    clip: true
+    boundsBehavior: Flickable.StopAtBounds
+    property bool open: false
+    required property var school
+    required property var store
+    required property var host
+    onOpenChanged: if (open) store.markRead()
+
+    ColumnLayout {
+    id: root
+    width: flick.width
     spacing: 16
 
-    required property var school
+    readonly property var school: flick.school
     readonly property var players: Mpris.players.values
     readonly property var player: players.find(p => p.isPlaying) || players[0] || null
 
@@ -86,6 +98,10 @@ ColumnLayout {
         }
     }
     Note { visible: root.player === null; text: "Nothing playing." }
+    Rule {}
 
-    Item { Layout.fillHeight: true }
+    Label { text: "Notifications" }
+    NotificationsSection { store: flick.store; host: flick.host }
+
+    }
 }
