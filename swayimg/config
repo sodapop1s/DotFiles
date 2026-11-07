@@ -1,0 +1,2 @@
+# Colours and font come from the design tokens (nixos/modules/theme).
+include /run/current-system/sw/share/rice-theme/swayimg/theme.conf
