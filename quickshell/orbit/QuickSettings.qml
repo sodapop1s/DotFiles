@@ -89,6 +89,13 @@ ColumnLayout {
         on: root.q.tailscale === true
         onFlipped: root.run(["tailscale", root.q.tailscale ? "down" : "up"])
     }
+    Toggle {
+        visible: root.q.idle !== undefined && root.q.idle !== null
+        label: "Auto-lock and sleep"
+        sub: "Lock after 5 min, screen off at 6, sleep at 20 on battery"
+        on: root.q.idle === true
+        onFlipped: root.run(["systemctl", "--user", root.q.idle ? "stop" : "start", "swayidle"])
+    }
     Repeater {
         model: root.q.vpns || []
         delegate: Toggle {

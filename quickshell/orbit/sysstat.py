@@ -104,7 +104,9 @@ def quick():
         parts = re.split(r"(?<!\\):", line)
         if len(parts) >= 3 and parts[1] in ("wireguard", "vpn"):
             vpns.append({"name": parts[0].replace("\\:", ":"), "on": parts[2] == "activated"})
+    idle = run("systemctl", "--user", "is-active", "swayidle").strip()
     return {"brightness": brightness(),
+            "idle": (idle == "active") if idle else None,
             "wifi": (wifi == "enabled") if wifi else None,
             "bluetooth": (bt.group(1) == "yes") if bt else None,
             "bluetoothDevices": btdev,

@@ -169,9 +169,20 @@ every minute from a CelesTrak orbit file (refetched at most every 12 hours) and 
 
 ## Services
 
-User units, started with the graphical session: `swayidle` (lock after 5 minutes, screen off after 6, suspend after 20
-only on battery), `cliphist-watch` and `wl-clip-persist` (clipboard history, wiped daily at 4 AM), and the `orbit-iss`
-timer.
+User units, started with the graphical session: `cliphist-watch` and `wl-clip-persist` (clipboard history, wiped
+daily at 4 AM) and the `orbit-iss` timer.
+
+**Auto-lock and sleep is off by default.** `swayidle` (lock after 5 minutes idle, screen off after 6, suspend after 20
+only on battery) is installed but not started at login. Turn it on for the current session with the "Auto-lock and
+sleep" switch in the System panel, or from a terminal:
+
+```bash
+orbit-idle on | off | status
+```
+
+To have it start with every login again, set `orbit.idle.autostart = true;` in the host's `configuration.nix` and
+rebuild. Manual locking (`Super+Alt+L`) always works. While swayidle is stopped, suspending by hand or
+`loginctl lock-session` does not lock first.
 
 ## Not in the repo
 
