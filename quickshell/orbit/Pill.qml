@@ -10,8 +10,8 @@ PanelWindow {
 
     required property var host     // the shell root: the study timer lives on host.studyFocus
 
-    anchors.bottom: true
-    margins.bottom: 14
+    anchors.top: true
+    margins.top: 12
     implicitWidth: row.implicitWidth + 36
     implicitHeight: 38
     exclusiveZone: 0

@@ -133,7 +133,7 @@ return {
 
 Written in QML for [Quickshell](https://quickshell.org). `shell.qml` loads these pieces:
 
-- **Pill** (bottom centre): workspace dots, time, battery. A study timer or a "No network" notice appears only when
+- **Pill** (top centre): workspace dots, time, battery. A study timer or a "No network" notice appears only when
   there is something to show.
 - **System panel** (`Super+B`, slides in from the left): quick settings (brightness, Wi-Fi, Bluetooth, Tailscale),
   processor and memory, temperatures, battery, audio, AirDrop, and homelab services.
