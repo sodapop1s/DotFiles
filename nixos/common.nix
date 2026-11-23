@@ -101,6 +101,10 @@
 
   # Core services
   services.flatpak.enable             = true;
+  # Flathub apps not in nixpkgs (installed by nix-flatpak; unlisted apps are left alone)
+  services.flatpak.packages = [
+    "app.xmcl.voxelum"  # X Minecraft Launcher
+  ];
   services.gnome.gnome-keyring.enable = true;
   services.udisks2.enable             = true;
   services.devmon.enable   = true;

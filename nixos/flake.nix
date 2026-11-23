@@ -11,6 +11,8 @@
     # Spotify desktop app, themed from the design tokens (modules/spotify.nix)
     spicetify-nix.url = "github:Gerg-L/spicetify-nix";
     spicetify-nix.inputs.nixpkgs.follows = "nixpkgs";
+    # Declarative Flatpak apps (services.flatpak.packages in common.nix)
+    nix-flatpak.url = "github:gmodena/nix-flatpak/v0.8.0";
   };
 
   outputs = { self, nixpkgs, ... }@inputs: {
@@ -20,6 +22,7 @@
         specialArgs = { inherit inputs; system = "x86_64-linux"; };
         modules     = [
           ./hosts/soda-fw/configuration.nix
+          inputs.nix-flatpak.nixosModules.nix-flatpak
         ];
       };
       soda-desk = nixpkgs.lib.nixosSystem {
@@ -27,6 +30,7 @@
         specialArgs = { inherit inputs; system = "x86_64-linux"; };
         modules     = [
           ./hosts/soda-desk/configuration.nix
+          inputs.nix-flatpak.nixosModules.nix-flatpak
         ];
       };
     };

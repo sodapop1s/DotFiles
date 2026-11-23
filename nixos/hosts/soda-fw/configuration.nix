@@ -19,6 +19,12 @@
   # ESP is only 96MB, shared with Windows — keep the count low
   boot.loader.systemd-boot.configurationLimit = 3;
 
+  # Silent hard resets since at least 2026-10-05 (no MCE/oops/GPU logs), on BIOS 03.05,
+  # which has known random-shutdown reports. fwupd to update the BIOS from LVFS.
+  # (linuxPackages_latest would name the reset reason at boot, but its kernel+initrd
+  # don't fit the 22MB left on the ESP.)
+  services.fwupd.enable = true;
+
   # Bluetooth
   hardware.bluetooth.enable      = true;
   hardware.bluetooth.powerOnBoot = true;
