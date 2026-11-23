@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 import Quickshell.Io
 
 // Brightness and the radio / VPN switches. State comes from sysstat.py (while the panel is open); each switch runs
@@ -105,6 +106,35 @@ ColumnLayout {
             on: modelData.on
             onFlipped: root.run(["nmcli", "connection", modelData.on ? "down" : "up", "id", modelData.name])
         }
+    }
+
+    // where the pill sits
+    RowLayout {
+        Layout.fillWidth: true; spacing: 8
+        Text { text: "Pill"; color: Theme.muted; Layout.fillWidth: true; font { family: Theme.fontUi; pixelSize: Theme.sizeUi } }
+        Chip { text: "Top"; selected: Sys.pillPosition === "top"; onClicked: Sys.setPill("top", Sys.pillReserve) }
+        Chip { text: "Bottom"; selected: Sys.pillPosition === "bottom"; onClicked: Sys.setPill("bottom", Sys.pillReserve) }
+    }
+    Toggle {
+        label: "Reserve space for the pill"
+        sub: "Windows start below it instead of going under it"
+        on: Sys.pillReserve
+        onFlipped: Sys.setPill(Sys.pillPosition, !Sys.pillReserve)
+    }
+
+    // which desktop is running; "Old" hands over to the original shell (this panel only exists in the new one)
+    RowLayout {
+        Layout.fillWidth: true; spacing: 8
+        Text { text: "Desktop"; color: Theme.muted; Layout.fillWidth: true; font { family: Theme.fontUi; pixelSize: Theme.sizeUi } }
+        Chip { text: "New"; selected: true }
+        Chip { text: "Old"; onClicked: root.run(["niri", "msg", "action", "spawn", "--", Quickshell.env("HOME") + "/DotFiles/bin/rice-switch", "bar"]) }
+    }
+    Text {
+        Layout.fillWidth: true
+        text: "Old is the original hub. Swapping restarts the shell."
+        wrapMode: Text.WordWrap
+        color: Theme.muted
+        font { family: Theme.fontUi; pixelSize: 12 }
     }
 
     Text {

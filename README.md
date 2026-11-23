@@ -24,6 +24,14 @@ There are two complete desktops in this repo, and you can move between them with
 ~/DotFiles/bin/rice-switch orbit --dry-run
 ```
 
+You can also swap without a terminal:
+
+| From | How |
+|---|---|
+| orbit to bar | the **Desktop: Old** button in the System panel, or `Super+Alt+D` |
+| bar to orbit | the launcher entry **Switch to the new desktop** (and **Switch to the old desktop** from orbit's launcher) |
+| anywhere | `rice-switch orbit` or `rice-switch bar` (on the PATH after a rebuild) |
+
 `rice-switch` points `~/.config/niri/config.kdl` at the chosen config (niri reloads it live), stops the running shell,
 and starts the other. It also stops the `swww` wallpaper daemon for orbit (orbit draws its own) and starts it again for
 bar. The first run saves your original file as `config.kdl.pre-rice`. **Never edit `quickshell/bar`**; new work goes in
@@ -51,6 +59,7 @@ nixos/
     filemanager.nix             "Yazi in Ghostty" launcher
     spotify.nix                 Spotify desktop app themed with spicetify
     omdrop.nix                  AirDrop
+    desktop-switch.nix          rice-switch on the PATH and the "Switch to ..." launcher entries
   pkgs/                         packages that are not in nixpkgs
 quickshell/orbit/               the new shell (see below)
 quickshell/bar/                 the old shell, untouched
@@ -141,6 +150,10 @@ Written in QML for [Quickshell](https://quickshell.org). `shell.qml` loads these
 - **Windows**: launcher (`Super+Space`), clipboard history (`Super+V`), study (`Super+E`: due, exams, grades, focus
   timer), Wi-Fi and Bluetooth (`Super+Shift+W` / `Super+Shift+B`), and the shortcuts menu (`Super+Shift+/`).
 - **Wallpaper**, **notification popups**, and the lock screen and idle handling (see below).
+
+The pill can sit at the **top or bottom**, and can **reserve its own strip** so windows start below it instead of going
+under it. Change it with the Pill buttons and the "Reserve space" switch in the System panel, or cycle through the four
+combinations with `Super+Alt+P` (`qs -c orbit ipc call pill cycle`). The choice is remembered.
 
 Press **`Super+Shift+/`** for the full list of keys. That menu reads your niri binds, so it is always correct; to add or
 rename a row, edit `MENU` in `quickshell/orbit/hotkeys.py`.

@@ -10,11 +10,14 @@ PanelWindow {
 
     required property var host     // the shell root: the study timer lives on host.studyFocus
 
-    anchors.top: true
+    // top or bottom, optionally reserving its own strip so windows start below it (see Sys.setPill)
+    anchors.top: Sys.pillPosition === "top"
+    anchors.bottom: Sys.pillPosition === "bottom"
     margins.top: 12
+    margins.bottom: 12
     implicitWidth: row.implicitWidth + 36
     implicitHeight: 38
-    exclusiveZone: 0
+    exclusiveZone: Sys.pillReserve ? implicitHeight : 0
     color: "transparent"
     WlrLayershell.namespace: "orbit-pill"
 

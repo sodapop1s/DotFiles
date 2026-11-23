@@ -66,6 +66,8 @@ MENU = [
         ("Lock", r'"orbit-lock"'),
         ("Power menu", r'"wlogout"'),
         ("Screen off", r'^power-off-monitors$'),
+        ("Move the pill", r'"pill" "cycle"'),
+        ("Switch to the old desktop", r'rice-switch'),
         ("This menu", r'"toggle" "keys"'),
         ("Quit niri", r'^quit$'),
     ]),

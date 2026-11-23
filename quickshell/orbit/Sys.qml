@@ -83,5 +83,36 @@ Singleton {
         onTriggered: if (!statsProc.running) statsProc.running = true
     }
 
+    // ── where the pill sits: top or bottom, and whether it reserves its own strip (windows then start below it) ──
+    property string pillPosition: "top"
+    property bool pillReserve: false
+    FileView {
+        id: pillStore
+        path: Quickshell.env("HOME") + "/.local/state/qs-orbit-pill.json"
+        onLoaded: {
+            try {
+                var d = JSON.parse(pillStore.text())
+                if (d.position === "top" || d.position === "bottom") root.pillPosition = d.position
+                root.pillReserve = d.reserve === true
+            } catch (e) {}
+        }
+    }
+    function setPill(pos, reserve) {
+        pillPosition = pos; pillReserve = reserve
+        pillStore.setText(JSON.stringify({ position: pos, reserve: reserve }))
+    }
+    function cyclePill() {   // top, top reserved, bottom, bottom reserved
+        var states = [["top", false], ["top", true], ["bottom", false], ["bottom", true]]
+        var i = states.findIndex(s => s[0] === pillPosition && s[1] === pillReserve)
+        var n = states[(i + 1) % states.length]
+        setPill(n[0], n[1])
+    }
+    IpcHandler {
+        target: "pill"
+        function position(p: string): void { if (p === "top" || p === "bottom") root.setPill(p, root.pillReserve) }
+        function reserve(v: string): void { root.setPill(root.pillPosition, v === "toggle" ? !root.pillReserve : v === "on") }
+        function cycle(): void { root.cyclePill() }
+    }
+
     Component.onCompleted: { wsQuery.running = true; netQuery.running = true }
 }

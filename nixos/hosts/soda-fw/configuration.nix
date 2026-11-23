@@ -11,6 +11,7 @@
     ../../modules/idle.nix
     ../../modules/filemanager.nix
     ../../modules/spotify.nix
+    ../../modules/desktop-switch.nix
   ];
 
   networking.hostName = "soda-fw";
