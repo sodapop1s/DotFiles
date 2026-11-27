@@ -1,4 +1,4 @@
-{ config, pkgs, ... }:
+{ config, pkgs, inputs, system, ... }:
 
 {
   # Bootloader
@@ -34,7 +34,9 @@
   # Networking
   networking.networkmanager.enable = true;
   services.tailscale.enable = true;
-  networking.firewall.trustedInterfaces = [ "tailscale0" ];
+  # lets the shell's Tailscale switch run `tailscale up/down` without root
+  services.tailscale.extraSetFlags = [ "--operator=soda" ];
+  networking.firewall.trustedInterfaces = [ "tailscale0" "virbr0" ];
 
   # nix-ld: makes non-NixOS binaries (SMAPI, AppImages, VS Code extensions) work
   programs.nix-ld = {
@@ -54,7 +56,7 @@
   users.users.soda = {
     isNormalUser  = true;
     description   = "Soda";
-    extraGroups   = [ "networkmanager" "wheel" ];
+    extraGroups   = [ "networkmanager" "wheel" "libvirtd" "kvm" "dialout" ];
     packages      = with pkgs; [];
   };
 
@@ -76,9 +78,35 @@
     options = [ "defaults" "nofail" "x-systemd.device-timeout=5s" ];
   };
 
+  # Virtualisation (QEMU/KVM + virt-manager, Windows 11 ready)
+  virtualisation.libvirtd = {
+    enable = true;
+    qemu.swtpm.enable = true;  # software TPM 2.0 — required by Windows 11
+  };
+  virtualisation.spiceUSBRedirection.enable = true;
+  programs.virt-manager.enable = true;
+
+  # Power profiles (the bar's Profile button switches between saver / balanced / performance)
+  services.power-profiles-daemon.enable = true;
+
+  # Don't suspend on lid close (keeps VMs running)
+  services.logind.lidSwitch = "ignore";
+
+  # NAT for VMs on virbr0 (libvirt's iptables rules don't apply on NixOS nftables)
+  networking.nat = {
+    enable             = true;
+    internalInterfaces = [ "virbr0" ];
+    externalInterface  = "wlp1s0";
+  };
+
   # Core services
-  services.flatpak.enable  = true;
-  services.udisks2.enable  = true;
+  services.flatpak.enable             = true;
+  # Flathub apps not in nixpkgs (installed by nix-flatpak; unlisted apps are left alone)
+  services.flatpak.packages = [
+    "app.xmcl.voxelum"  # X Minecraft Launcher
+  ];
+  services.gnome.gnome-keyring.enable = true;
+  services.udisks2.enable             = true;
   services.devmon.enable   = true;
   services.gvfs.enable     = true;
   services.tumbler.enable  = true;
@@ -125,9 +153,62 @@
     ];
   };
 
+  # Polkit agent — niri doesn't ship one, so GUI apps can't ask for the password without it
+  systemd.user.services.polkit-gnome-authentication-agent-1 = {
+    description = "polkit-gnome-authentication-agent-1";
+    wantedBy    = [ "graphical-session.target" ];
+    wants       = [ "graphical-session.target" ];
+    after       = [ "graphical-session.target" ];
+    serviceConfig = {
+      Type           = "simple";
+      ExecStart      = "${pkgs.polkit_gnome}/libexec/polkit-gnome-authentication-agent-1";
+      Restart        = "on-failure";
+      RestartSec     = 1;
+      TimeoutStopSec = 10;
+    };
+  };
+
+  # Default apps by file type
+  xdg.mime.defaultApplications = {
+    "application/pdf"  = "sioyek.desktop";
+    "text/plain"       = "org.gnome.TextEditor.desktop";
+    "video/mp4"        = "mpv.desktop";
+    "video/x-matroska" = "mpv.desktop";
+    "video/webm"       = "mpv.desktop";
+    "video/quicktime"  = "mpv.desktop";
+    "video/x-msvideo"  = "mpv.desktop";
+    "audio/mpeg"       = "vlc.desktop";
+    "audio/flac"       = "vlc.desktop";
+    "audio/ogg"        = "vlc.desktop";
+    "audio/x-wav"      = "vlc.desktop";
+    "image/png"        = "swayimg.desktop";
+    "image/jpeg"       = "swayimg.desktop";
+    "image/gif"        = "swayimg.desktop";
+    "image/webp"       = "swayimg.desktop";
+    "inode/directory"  = "thunar.desktop";
+  };
+
+  environment.sessionVariables.CLAUDE_DISABLE_SANDBOX = "1";
+
+  # iPhone support (libimobiledevice needs usbmuxd to talk to the phone)
+  services.usbmuxd.enable = true;
+
   environment.systemPackages = with pkgs; [
+    # Virtualisation tools
+    virt-viewer
+
+    # iPhone tools (idevice_id, idevicerestore, ...)
+    libimobiledevice
+    ifuse
+    (callPackage ./pkgs/idevicerestore-git.nix { })
+
+    # Microcontroller dev
+    (callPackage ./pkgs/arduino-ide.nix { })
+
     # Core tools
     neovim
+    ghostty          # terminal for the orbit setup; kitty stays for bar
+    python3          # used by the quickshell bar (calendar feed, spotify login)
     fastfetch
     git
     unzip
@@ -149,7 +230,9 @@
     swaylock
 
     # Communication / browsers
-    floorp-bin
+    inputs.zen-browser.packages.${system}.default
+    (callPackage ./pkgs/helium.nix { })
+    inputs.claude-desktop-extra.packages.${system}.default
     vesktop
     obsidian
 
@@ -159,24 +242,48 @@
     cloudflared
 
     # Java (needed for Minecraft tooling)
-    javaPackages.compiler.semeru-bin.jre-17
+    jdk21
 
     # Media / creative
     kdePackages.kdenlive
+    spotify-player
+    wlsunset         # night light (the bar's "Night" button)
+    ckan             # Kerbal Space Program mod manager (used by the bar's Games > KSP tab)
 
     # Gaming
+    # Lutris from unstable: 25.11 ships 0.5.19, three releases behind
+    (import inputs.nixpkgs-unstable {
+      inherit system;
+      config.allowUnfree = true;
+      # Lutris's FHS env still ships gtk2 for old games; unstable flags it as a deprecation nag
+      config.problems.handlers."gtk+".broken = "warn";
+    }).lutris
     (prismlauncher.override {
       additionalLibs = [ libxkbcommon ] ++ (with xorg; [
         libX11 libXtst libxcb libXt libXinerama
       ]);
     })
     (callPackage ./pkgs/ninjabrain-bot.nix { })
+    (callPackage ./pkgs/matlab-fhs.nix { })
     wivrn
     olympus
     gale
 
     # Misc / office
     libreoffice
+
+    # Default desktop apps
+    vlc                  # audio default, fallback for odd video
+    (mpv.override { scripts = with mpvScripts; [ uosc thumbfast ]; })
+    sioyek               # PDF viewer (default)
+    papers               # secondary PDF app: forms, signing, markup
+    swayimg              # image viewer (default)
+    yazi                 # terminal file manager
+    gnome-text-editor
+    pavucontrol          # audio mixer
+    networkmanagerapplet # nm-connection-editor
+    gnome-disk-utility
+    baobab               # disk usage analyzer
 
     # Thumbnail / file manager dependencies
     ffmpegthumbnailer
